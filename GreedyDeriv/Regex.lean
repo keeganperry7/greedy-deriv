@@ -80,6 +80,7 @@ def deriv : Regex α → α → Regex α
         else (r₁.deriv c).mul r₂
   | star r, c => (r.deriv c).mul r.star
 
+@[simp]
 def prune (r : Regex α) : Regex α :=
   match r, r.nullable, r.highNullable with
   | r, false, _ => r
@@ -89,6 +90,24 @@ def prune (r : Regex α) : Regex α :=
       then r₂.prune
       else mul r₁ r₂
   | r, true, false => r
+
+theorem prune_not_nullable (r : Regex α) (hn : ¬r.nullable) :
+  r.prune = r := by
+  rw [prune]
+  simp at hn
+  exact hn
+
+theorem prune_plus_nullable (r₁ r₂ : Regex α) (h : (r₁.plus r₂).nullable) (hn : ¬r₁.highNullable) :
+  (r₁.plus r₂).prune = r₁.plus r₂ := by
+  unfold prune
+  rw [h]
+  simp [hn]
+
+theorem prune_plus_nullable_highNullable (r₁ r₂ : Regex α) (hn : (r₁.plus r₂).nullable) (hr : r₁.highNullable) :
+  (r₁.plus r₂).prune = one := by
+  unfold prune
+  rw [hn]
+  simp [hr]
 
 def matchEnd : Regex α → Loc α → Option (Loc α) → Option (Loc α)
   | r, ⟨u, []⟩, cur =>
@@ -130,7 +149,7 @@ theorem matchEnd_soundness (r : Regex α) (s₁ s₂ s₁' s₂': List α) (cur 
       · have ih := ih _ _ _ (by simp) h
         rw [←ih]
         simp
-      · have ih := ih (r.prune.deriv x) (x::s₁) (cur)
+      · have ih := ih (r.prune.deriv x) (x::s₁) cur
         rw [←h_cur] at ih
         have ih := ih (by simp) h
         rw [←ih]

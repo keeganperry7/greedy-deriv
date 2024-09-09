@@ -6,7 +6,7 @@ def r := (Regex.char 'a').plus ((Regex.char 'a').mul (Regex.char 'b'))
 #eval r.rmatch "ab".toList
 
 example : Greedy r ⟨['a'], ['b']⟩ := by
-  apply Greedy.plus_left _ _ ['a'] ['b']
+  apply Greedy.plus_left _ _ (['a'], ['b'])
   apply Greedy.char
 
 -- (a + ab)*
@@ -27,7 +27,7 @@ def r3 := (Regex.char 'c').plus ((Regex.char 'a').mul (Regex.char 'b'))
 #eval r3.rmatch "ab".toList
 
 example : Greedy r3 ⟨['b', 'a'], []⟩ := by
-  apply Greedy.plus_right _ _ ['a', 'b']
+  apply Greedy.plus_right _ _ (['b', 'a'], [])
   intro ⟨s₁, s₂, hs, h⟩
   cases h
   simp at hs

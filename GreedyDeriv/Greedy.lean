@@ -7,13 +7,13 @@ inductive Greedy : Regex α → Loc α → Prop
     Greedy .one ⟨[], s⟩
   | char (c : α) (s : List α) :
     Greedy (.char c) ⟨[c], s⟩
-  | plus_left (r₁ r₂ : Regex α) (s₁ s₂ : List α) :
-    Greedy r₁ ⟨s₁.reverse, s₂⟩ →
-    Greedy (r₁.plus r₂) ⟨s₁.reverse, s₂⟩
-  | plus_right (r₁ r₂ : Regex α) (s₁ s₂ : List α) :
-    ¬(∃ s₃ s₄, s₃ ++ s₄ = s₁ ++ s₄ ∧ r₁.matches' s₃) →
-    Greedy r₂ ⟨s₁.reverse, s₂⟩ →
-    Greedy (r₁.plus r₂) ⟨s₁.reverse, s₂⟩
+  | plus_left (r₁ r₂ : Regex α) (loc : Loc α) :
+    Greedy r₁ loc →
+    Greedy (r₁.plus r₂) loc
+  | plus_right (r₁ r₂ : Regex α) (loc : Loc α) :
+    ¬(∃ s₃ s₄, s₃ ++ s₄ = loc.word ∧ r₁.matches' s₃) →
+    Greedy r₂ loc →
+    Greedy (r₁.plus r₂) loc
   | mul (r₁ r₂ : Regex α) (s₁ s₂ s₃ : List α) :
     Greedy r₁ ⟨s₁.reverse, s₂ ++ s₃⟩ →
     Greedy r₂ ⟨s₂.reverse, s₃⟩ →
