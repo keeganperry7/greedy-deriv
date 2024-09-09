@@ -1,5 +1,7 @@
 import GreedyDeriv.Locations
 import Mathlib.Tactic.SplitIfs
+import Mathlib.Tactic.ApplyAt
+-- import Mathlib
 
 inductive Regex (α :  Type u) : Type u where
   | zero : Regex α
@@ -102,50 +104,66 @@ termination_by _ loc => loc.right.length
 def rmatch : Regex α → List α → Option (Loc α)
   | r, s => matchEnd r ⟨[], s⟩ none
 
-
-theorem matchEnd_cons (r : Regex α) (c : α) (u v : List α) (cur : Option (Loc α)) (loc : Loc α) :
-  ¬r.nullable →
-  r.matchEnd (u, c::v) cur = some loc → (r.prune.deriv c).matchEnd (u, v) cur = some loc := by
-  intro hn h
-  unfold matchEnd at h
-  simp [hn] at h
-  sorry
-
-theorem matchEnd_soundness (r : Regex α) (s : List α) (cur : Option (Loc α)) (loc : Loc α) :
-  cur.map Loc.word = some s →
-  r.matchEnd ⟨[], s⟩ cur = some loc → s = loc.word := by
-  intro h
-  induction s generalizing cur loc r with
+theorem matchEnd_soundness (r : Regex α) (s₁ s₂ s₁' s₂': List α) (cur : Option (Loc α)) :
+  (some (Loc.word (s₁, s₂)) = cur.map Loc.word  ∨ cur = none) →
+  r.matchEnd (s₁, s₂) cur = some (s₁', s₂') → Loc.word (s₁, s₂) = Loc.word (s₁', s₂') := by
+  intro h_cur h
+  induction s₂ generalizing r s₁ cur with
   | nil =>
-    unfold matchEnd
-    split_ifs
-    · intro h
-      simp at h
-      simp [←h]
-    · intro h'
-      rw [h'] at h
-      simp at *
-      exact h
+    cases h_cur with
+    | inl h_cur =>
+      simp [matchEnd] at h
+      split_ifs at h
+      · simp at h
+        rw [h]
+      · rw [h, Option.map_some'] at h_cur
+        simp_all
+    | inr h_cur =>
+      rw [h_cur] at h
+      simp [matchEnd] at h
+      rw [h.right]
   | cons x xs ih =>
-    unfold matchEnd
-    split_ifs
-    · intro h'
-      sorry
-    · intro h'
-      sorry
+    cases h_cur with
+    | inl h_cur =>
+      simp [matchEnd] at h
+      split_ifs at h with hr
+      · have ih := ih _ _ _ (by simp) h
+        rw [←ih]
+        simp
+      · have ih := ih (r.prune.deriv x) (x::s₁) (cur)
+        rw [←h_cur] at ih
+        have ih := ih (by simp) h
+        rw [←ih]
+        simp
+    | inr h_cur =>
+      rw [h_cur] at h
+      simp [matchEnd] at h
+      split_ifs at h with hr
+      · have ih := ih _ _ _ (by simp) h
+        rw [←ih]
+        simp
+      · have ih := ih _ _ none (by simp) h
+        rw [←ih]
+        simp
 
 theorem soundness (r : Regex α) (s : List α) (loc : Loc α) :
   r.rmatch s = some loc → s = loc.word := by
-  induction s with
+  cases s with
   | nil =>
     intro h
     unfold rmatch matchEnd at h
     simp at h
     simp [←h.right]
-  | cons x xs ih =>
-    unfold rmatch matchEnd
+  | cons x xs =>
+    simp [rmatch, matchEnd]
     split_ifs with h'
     · intro h
-      sorry
+      apply matchEnd_soundness at h
+      simp at h
+      exact h
+      simp
     · intro h
-      sorry
+      apply matchEnd_soundness at h
+      simp at h
+      exact h
+      simp
