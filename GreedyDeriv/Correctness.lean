@@ -1,7 +1,18 @@
 import GreedyDeriv.Regex
 import GreedyDeriv.Greedy
 
+import Mathlib.Tactic.Contrapose
+
 variable {α : Type u} [DecidableEq α]
+
+theorem matchEnd_deriv (r : Regex α) (x : α) (s₁ xs : List α) (loc : Loc α) :
+  r.nullable →
+  (r.prune.deriv x).matchEnd (x::s₁, xs) (some (s₁, x::xs)) = some loc →
+  ∀ cur, r.matchEnd (s₁, x::xs) cur = some loc := by
+  intro hr h
+  intro cur
+  simp [Regex.matchEnd, hr]
+  exact h
 
 @[simp]
 theorem zero_matchEnd (s₁ s₂ : List α) (cur : Option (Loc α)) :
@@ -64,8 +75,7 @@ theorem add_matchEnd (r₁ r₂ : Regex α) (s₁ s₂ : List α) (loc : Loc α)
         rw [Regex.prune_highNullable _ hr'' hr']
         simp
         exact h
-      ·
-        have h' := @Regex.prune_plus_nullable _ r₁ r₂ (by simp [hr]) (by simp [hr'])
+      · have h' := @Regex.prune_plus_nullable _ r₁ r₂ (by simp [hr]) (by simp [hr'])
         cases h' with
         | inl h' =>
           simp [Regex.matchEnd, h'.left]
@@ -73,11 +83,15 @@ theorem add_matchEnd (r₁ r₂ : Regex α) (s₁ s₂ : List α) (loc : Loc α)
           rw [h'.right] at h
           exact h
         | inr h' =>
+          have hr := Or.resolve_left hr h'.left
+          simp [Regex.matchEnd, hr, h'.left]
           rw [h'.right] at h
-          cases hr with
-          | inl hr => exact absurd hr h'.left
-          | inr hr =>
-            sorry
+          apply ih at h
+          cases h with
+          | inl h => sorry
+          | inr h =>
+            right
+            exact h
     · simp at hr
       simp [Regex.prune_not_nullable, hr, Regex.deriv] at h
       apply ih at h
