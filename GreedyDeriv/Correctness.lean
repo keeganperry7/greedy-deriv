@@ -56,26 +56,28 @@ theorem add_matchEnd (r₁ r₂ : Regex α) (s₁ s₂ : List α) (loc : Loc α)
     simp [Regex.matchEnd] at h
     split_ifs at h with hr
     · by_cases hr' : r₁.highNullable
-      · rw [Regex.prune_plus_nullable_highNullable] at h
+      · rw [Regex.prune_plus_nullable_highNullable _ _ (by simp [hr]) hr'] at h
         simp at h
         left
-        -- Need to show that r₁ is pruned to ε
-        sorry
-        simp [hr]
-        exact hr'
-      · rw [Regex.prune_plus_nullable, Regex.deriv] at h
-        apply ih at h
-        cases hr with
-        | inl hr =>
-          simp [Regex.matchEnd, hr]
+        have hr'' := Regex.highNullable_nullable _ hr'
+        simp [Regex.matchEnd, hr'']
+        rw [Regex.prune_highNullable _ hr'' hr']
+        simp
+        exact h
+      ·
+        have h' := @Regex.prune_plus_nullable _ r₁ r₂ (by simp [hr]) (by simp [hr'])
+        cases h' with
+        | inl h' =>
+          simp [Regex.matchEnd, h'.left]
           left
-          sorry
-        | inr hr =>
-          simp [Regex.matchEnd, hr]
-          right
-          sorry
-        simp [hr]
-        exact hr'
+          rw [h'.right] at h
+          exact h
+        | inr h' =>
+          rw [h'.right] at h
+          cases hr with
+          | inl hr => exact absurd hr h'.left
+          | inr hr =>
+            sorry
     · simp at hr
       simp [Regex.prune_not_nullable, hr, Regex.deriv] at h
       apply ih at h

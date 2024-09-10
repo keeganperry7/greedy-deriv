@@ -10,6 +10,7 @@ inductive Regex (α :  Type u) : Type u where
   | plus : Regex α → Regex α → Regex α
   | mul : Regex α → Regex α → Regex α
   | star : Regex α → Regex α
+  deriving Repr
 
 namespace Regex
 
@@ -66,6 +67,25 @@ def highNullable : Regex α → Bool
   | mul r₁ r₂ => r₁.highNullable && r₂.highNullable
   | star r => r.highNullable
 
+theorem highNullable_nullable (r : Regex α) :
+  r.highNullable → r.nullable := by
+  induction r with
+  | zero => simp
+  | one => simp
+  | char => simp
+  | plus r₁ r₂ ih₁ _ =>
+    simp
+    intro h
+    apply ih₁ at h
+    exact Or.inl h
+  | mul r₁ r₂ ih₁ ih₂ =>
+    simp
+    intro h₁ h₂
+    apply ih₁ at h₁
+    apply ih₂ at h₂
+    exact ⟨h₁, h₂⟩
+  | star => simp
+
 @[simp]
 def deriv : Regex α → α → Regex α
   | zero, _ => zero
@@ -89,21 +109,34 @@ def prune (r : Regex α) : Regex α :=
     if r₁.highNullable
       then r₂.prune
       else mul r₁ r₂
+  | plus r₁ r₂, true, false =>
+    if r₁.nullable
+      then r₁.prune
+      else plus r₁ (r₂.prune)
   | r, true, false => r
 
-theorem prune_not_nullable (r : Regex α) (hn : ¬r.nullable) :
+theorem prune_highNullable {α : Type u} (r : Regex α) (h : r.nullable) (hh : r.highNullable) :
+  r.prune = one := by
+  unfold prune
+  rw [h, hh]
+  simp
+
+theorem prune_not_nullable {α : Type u} (r : Regex α) (hn : ¬r.nullable) :
   r.prune = r := by
   rw [prune]
   simp at hn
   exact hn
 
-theorem prune_plus_nullable (r₁ r₂ : Regex α) (h : (r₁.plus r₂).nullable) (hn : ¬r₁.highNullable) :
-  (r₁.plus r₂).prune = r₁.plus r₂ := by
+-- TODO
+theorem prune_plus_nullable {α : Type u} {r₁ r₂ : Regex α} (h : (r₁.plus r₂).nullable) (hn : ¬(r₁.plus r₂).highNullable) :
+  r₁.nullable ∧ (r₁.plus r₂).prune = r₁.prune ∨ ¬r₁.nullable ∧ (r₁.plus r₂).prune = r₁.prune.plus (r₂.prune) := by
   unfold prune
-  rw [h]
-  simp [hn]
+  rw [Bool.not_eq_true] at hn
+  rw [h, hn]
+  sorry
 
-theorem prune_plus_nullable_highNullable (r₁ r₂ : Regex α) (hn : (r₁.plus r₂).nullable) (hr : r₁.highNullable) :
+
+theorem prune_plus_nullable_highNullable {α : Type u} (r₁ r₂ : Regex α) (hn : (r₁.plus r₂).nullable) (hr : r₁.highNullable) :
   (r₁.plus r₂).prune = one := by
   unfold prune
   rw [hn]
