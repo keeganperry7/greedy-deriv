@@ -67,7 +67,7 @@ def highNullable : Regex α → Bool
   | mul r₁ r₂ => r₁.highNullable && r₂.highNullable
   | star r => r.highNullable
 
-theorem highNullable_nullable (r : Regex α) :
+theorem highNullable_nullable {α : Type u} (r : Regex α) :
   r.highNullable → r.nullable := by
   induction r with
   | zero => simp
@@ -127,14 +127,15 @@ theorem prune_not_nullable {α : Type u} (r : Regex α) (hn : ¬r.nullable) :
   simp at hn
   exact hn
 
--- TODO
 theorem prune_plus_nullable {α : Type u} {r₁ r₂ : Regex α} (h : (r₁.plus r₂).nullable) (hn : ¬(r₁.plus r₂).highNullable) :
   r₁.nullable ∧ (r₁.plus r₂).prune = r₁.prune ∨ ¬r₁.nullable ∧ (r₁.plus r₂).prune = r₁.prune.plus (r₂.prune) := by
-  unfold prune
-  rw [Bool.not_eq_true] at hn
-  rw [h, hn]
-  sorry
-
+  simp_all
+  cases h with
+  | inl h => simp_all
+  | inr h =>
+    by_cases hr : r₁.nullable
+    · simp_all
+    · simp_all
 
 theorem prune_plus_nullable_highNullable {α : Type u} (r₁ r₂ : Regex α) (hn : (r₁.plus r₂).nullable) (hr : r₁.highNullable) :
   (r₁.plus r₂).prune = one := by
