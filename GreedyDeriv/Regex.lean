@@ -40,10 +40,11 @@ inductive matches' : Regex α → List α → Prop where
     (r₁.mul r₂).matches' (s₁ ++ s₂)
   | star_nil {r : Regex α} :
     r.star.matches' []
-  | star {r : Regex α} {s₁ s₂ : List α} :
+  | star {r : Regex α} {s₁ s₂ s : List α} :
     r.matches' s₁ →
     r.star.matches' s₂ →
-    r.star.matches' (s₁ ++ s₂)
+    s₁ ++ s₂ = s →
+    r.star.matches' s
 
 /-! ### Derivatives -/
 

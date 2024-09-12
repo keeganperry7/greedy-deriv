@@ -9,6 +9,13 @@ example : Greedy r ⟨['a'], ['b']⟩ := by
   apply Greedy.plus_left _ _ (['a'], ['b'])
   apply Greedy.char
 
+theorem List.append_eq_singleton {α : Type u} {p q : List α} {x : α} :
+  p ++ q = [x] → (p = [x] ∧ q = []) ∨ (p = [] ∧ q = [x]) := by
+  intro h
+  cases p with
+  | nil => simp_all
+  | cons x xs => simp_all
+
 -- (a + ab)*
 def r2 := ((Regex.char 'a').plus ((Regex.char 'a').mul (Regex.char 'b'))).star
 #eval r2.rmatch "aab".toList
@@ -21,6 +28,26 @@ example : Greedy r2 ⟨['a', 'a'], ['b']⟩ := by
   apply Greedy.plus_left
   apply Greedy.char
   apply Greedy.star_nil
+  intro h
+  let ⟨s₃, s₄, hs, hs', h⟩ := h
+  apply List.append_eq_singleton at hs'
+  cases hs' with
+  | inl hs' =>
+    rw [hs'.left] at h
+    cases h with
+    | star h₁ h₂ hs =>
+      cases h₁ with
+      | plus_left h =>
+        cases h
+        simp at hs
+      | plus_right h =>
+        cases h with
+        | mul h₁ h₂ =>
+          cases h₁
+          simp at hs
+  | inr hs' =>
+    absurd hs'.left
+    exact hs
 
 -- c + ab
 def r3 := (Regex.char 'c').plus ((Regex.char 'a').mul (Regex.char 'b'))

@@ -1,4 +1,5 @@
 import GreedyDeriv.Regex
+import Mathlib.Tactic
 
 variable {α : Type u}
 
@@ -19,8 +20,73 @@ inductive Greedy : Regex α → Loc α → Prop
     Greedy r₂ ⟨s₂.reverse, s₃⟩ →
     Greedy (r₁.mul r₂) ⟨s₂.reverse ++ s₁.reverse, s₃⟩
   | star_nil (r : Regex α) (s : List α) :
-    Greedy r.star ⟨[], s⟩
+    ¬(∃ s₃ s₄, s₃ ≠ [] ∧ s₃ ++ s₄ = s ∧ r.star.matches' s₃) →
+    Greedy r.star ([], s)
   | star (r : Regex α) (s₁ s₂ s₃ : List α) :
     Greedy r ⟨s₁.reverse, s₂ ++ s₃⟩ →
     Greedy r.star ⟨s₂.reverse, s₃⟩ →
     Greedy r.star ⟨s₂.reverse ++ s₁.reverse, s₃⟩
+
+theorem correctness (r : Regex α) (l : Loc α) :
+  Greedy r l → r.matches' l.left.reverse := by
+  intro h
+  induction h with
+  | one =>
+    simp
+    apply Regex.matches'.one
+  | char c =>
+    simp
+    apply Regex.matches'.char
+  | plus_left r₁ r₂ loc _ ih =>
+    apply Regex.matches'.plus_left
+    exact ih
+  | plus_right r₁ r₂ loc _ _ ih =>
+    apply Regex.matches'.plus_right
+    exact ih
+  | mul r₁ r₂ s₁ s₂ s₃ h₁ h₂ ih₁ ih₂ =>
+    simp
+    apply Regex.matches'.mul
+    simp_all
+    simp_all
+  | star_nil =>
+    simp
+    apply Regex.matches'.star_nil
+  | star r s₁ s₂ s₃ h₁ h₂ ih₁ ih₂ =>
+    simp
+    simp_all
+    apply Regex.matches'.star
+    exact ih₁
+    exact ih₂
+    rfl
+
+theorem uniqueness (r : Regex α) (l₁ l₂ : Loc α) (hl : l₁.word = l₂.word) :
+  Greedy r l₁ ∧ Greedy r l₂ → l₁ = l₂ := by
+  intro ⟨h₁, h₂⟩
+  induction h₁ with
+  | one =>
+    cases h₂
+    simp_all
+  | char =>
+    cases h₂
+    simp_all
+  | plus_left r₁ r₂ loc h₁ ih₁ =>
+    cases h₂ with
+    | plus_left => simp_all
+    | plus_right _ _ _ hn =>
+      absurd hn
+      apply correctness at h₁
+      use loc.left.reverse
+      use loc.right
+      simp_all
+  | plus_right r₁ r₂ loc hn h ih =>
+    cases h₂ with
+    | plus_left _ _ _ h' =>
+      apply correctness at h'
+      absurd hn
+      use l₂.left.reverse
+      use l₂.right
+      simp_all
+    | plus_right => simp_all
+  | mul => sorry
+  | star_nil => sorry
+  | star => sorry
