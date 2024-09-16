@@ -5,15 +5,6 @@ import Mathlib.Tactic.Contrapose
 
 variable {α : Type u} [DecidableEq α]
 
-theorem matchEnd_deriv (r : Regex α) (x : α) (s₁ xs : List α) (loc : Loc α) :
-  r.nullable →
-  (r.prune.deriv x).matchEnd (x::s₁, xs) (some (s₁, x::xs)) = some loc →
-  ∀ cur, r.matchEnd (s₁, x::xs) cur = some loc := by
-  intro hr h
-  intro cur
-  simp [Regex.matchEnd, hr]
-  exact h
-
 @[simp]
 theorem zero_matchEnd (s₁ s₂ : List α) (cur : Option (Loc α)) :
   Regex.zero.matchEnd (s₁, s₂) cur = cur := by
