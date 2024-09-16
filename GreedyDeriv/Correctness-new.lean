@@ -101,8 +101,7 @@ theorem add_matchEnd' (r₁ r₂ : Regex α) (s₁ s₂ : List α) (loc : Option
         left
         have hr'' := Regex.highNullable_nullable _ hr'
         simp [Regex.matchEnd', hr'']
-        rw [Regex.prune_highNullable _ hr'' hr']
-        simp
+        simp [Regex.prune_highNullable _ hr'' hr']
         exact h
       · have h' := @Regex.prune_plus_nullable _ r₁ r₂ (by simp [hr]) (by simp [hr'])
         cases h' with
@@ -119,56 +118,13 @@ theorem add_matchEnd' (r₁ r₂ : Regex α) (s₁ s₂ : List α) (loc : Option
           | none =>
             simp [k] at h
             apply add_matchEnd'_none at k
-            right
-            rw [k.right, h]
+            simp [k.right, h]
           | some l =>
-            rw [k] at h
-            simp at h
-            rw [h] at k
-            apply ih at k
-            cases k with
-            | inl k =>
-              left
-              simp [h'.left, Regex.prune_not_nullable] at k
-              rw [k]
-              rw [←h]
-            | inr k =>
-              rw [k]
-              right
-              rw [←h]
-    · simp at hr
+            simp at ih
+            cases ih (r₁.deriv x) (r₂.prune.deriv x) (x::s₁) <;> simp_all
+    · simp at hr ih
       simp [Regex.prune_not_nullable, hr, Regex.deriv] at h
-      cases k : ((r₁.deriv x).plus (r₂.deriv x)).matchEnd' (x :: s₁, xs) with
-      | none =>
-        rw [k] at h
-        simp at h
-        rw [h] at k
-        apply ih at k
-        simp [Regex.matchEnd', hr, Regex.prune_not_nullable]
-        cases k with
-        | inl k =>
-          rw [k]
-          left
-          rw [←h]
-        | inr k =>
-          rw [k]
-          right
-          rw [←h]
-      | some l =>
-        rw [k] at h
-        simp at h
-        rw [h] at k
-        apply ih at k
-        simp [Regex.matchEnd', hr, Regex.prune_not_nullable]
-        cases k with
-        | inl k =>
-          rw [k]
-          left
-          rw [←h]
-        | inr k =>
-          rw [k]
-          right
-          rw [←h]
+      cases ih (r₁.deriv x) (r₂.deriv x) (x::s₁) <;> simp_all [Regex.matchEnd']
 
 theorem add_rmatch' (r₁ r₂ : Regex α) (s : List α) (loc : Loc α) :
   (r₁.plus r₂).rmatch' s = some loc →
