@@ -3,3 +3,4 @@
 import GreedyDeriv.Regex
 import GreedyDeriv.Locations
 import GreedyDeriv.Examples
+import GreedyDeriv.Correctness
