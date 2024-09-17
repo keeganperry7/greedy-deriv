@@ -1,31 +1,21 @@
 import GreedyDeriv.Regex
 import GreedyDeriv.Greedy
 
-import Mathlib.Tactic.Contrapose
-
 variable {α : Type u} [DecidableEq α]
 
-theorem matchEnd_deriv (r : Regex α) (x : α) (s₁ xs : List α) (loc : Loc α) :
-  r.nullable →
-  (r.prune.deriv x).matchEnd (x::s₁, xs) (some (s₁, x::xs)) = some loc →
-  ∀ cur, r.matchEnd (s₁, x::xs) cur = some loc := by
-  intro hr h
-  intro cur
-  simp [Regex.matchEnd, hr]
-  exact h
-
 @[simp]
-theorem zero_matchEnd (s₁ s₂ : List α) (cur : Option (Loc α)) :
-  Regex.zero.matchEnd (s₁, s₂) cur = cur := by
+theorem zero_matchEnd (s₁ s₂ : List α) :
+  Regex.zero.matchEnd (s₁, s₂) = none := by
   induction s₂ generalizing s₁ with
-  | nil => simp [Regex.matchEnd]
+  | nil =>
+    simp [Regex.matchEnd]
   | cons x xs ih =>
     simp [Regex.matchEnd]
-    apply ih
+    rw [ih]
 
 @[simp]
-theorem one_matchEnd (s₁ s₂ : List α) (cur : Option (Loc α)) :
-  Regex.one.matchEnd (s₁, s₂) cur = some (s₁, s₂) := by
+theorem one_matchEnd (s₁ s₂ : List α) :
+  Regex.one.matchEnd (s₁, s₂) = some (s₁, s₂) := by
   cases s₂ with
   | nil => simp [Regex.matchEnd]
   | cons x xs => simp [Regex.matchEnd]
@@ -55,13 +45,38 @@ theorem char_rmatch (c : α) (s : List α) (loc : Loc α) :
     · simp [hc]
     · simp_all
 
-theorem add_matchEnd (r₁ r₂ : Regex α) (s₁ s₂ : List α) (loc : Loc α) (cur : Option (Loc α)) :
-  (r₁.plus r₂).matchEnd (s₁, s₂) cur = some loc →
-  r₁.matchEnd (s₁, s₂) cur = some loc ∨ r₂.matchEnd (s₁, s₂) cur = some loc := by
-  induction s₂ generalizing r₁ r₂ s₁ cur with
+theorem add_matchEnd_none (r₁ r₂ : Regex α) (s₁ s₂ : List α) :
+  (r₁.plus r₂).matchEnd (s₁, s₂) = none →
+  r₁.matchEnd (s₁, s₂) = none ∧ r₂.matchEnd (s₁, s₂) = none := by
+  induction s₂ generalizing r₁ r₂ s₁ with
+  | nil => simp [Regex.matchEnd]
+  | cons x xs ih =>
+    intro h
+    simp [Regex.matchEnd] at h
+    cases k : ((r₁.plus r₂).prune.deriv x).matchEnd (x :: s₁, xs) with
+    | none =>
+      rw [k] at h
+      simp at h
+      by_cases hr : (r₁.plus r₂).nullable
+      · by_cases hr' : r₁.highNullable
+        · apply Regex.highNullable_nullable at hr'
+          simp_all
+        · simp_all
+      · simp at hr
+        simp [Regex.prune_not_nullable, hr, Regex.deriv] at k
+        apply ih at k
+        simp [Regex.matchEnd, h, k]
+    | some =>
+      rw [k] at h
+      simp at h
+
+theorem add_matchEnd (r₁ r₂ : Regex α) (s₁ s₂ : List α) (loc : Option (Loc α)) :
+  (r₁.plus r₂).matchEnd (s₁, s₂) = loc →
+  r₁.matchEnd (s₁, s₂) = loc ∨ r₂.matchEnd (s₁, s₂) = loc := by
+  induction s₂ generalizing r₁ r₂ s₁ loc with
   | nil =>
     simp [Regex.matchEnd]
-    split_ifs <;> (intro h; simp_all)
+    split_ifs <;> simp_all
   | cons x xs ih =>
     intro h
     simp [Regex.matchEnd] at h
@@ -70,10 +85,8 @@ theorem add_matchEnd (r₁ r₂ : Regex α) (s₁ s₂ : List α) (loc : Loc α)
       · rw [Regex.prune_plus_nullable_highNullable _ _ (by simp [hr]) hr'] at h
         simp at h
         left
-        have hr'' := Regex.highNullable_nullable _ hr'
-        simp [Regex.matchEnd, hr'']
-        rw [Regex.prune_highNullable _ hr'' hr']
-        simp
+        simp [Regex.matchEnd, Regex.highNullable_nullable hr']
+        simp [Regex.prune_highNullable hr']
         exact h
       · have h' := @Regex.prune_plus_nullable _ r₁ r₂ (by simp [hr]) (by simp [hr'])
         cases h' with
@@ -85,27 +98,19 @@ theorem add_matchEnd (r₁ r₂ : Regex α) (s₁ s₂ : List α) (loc : Loc α)
         | inr h' =>
           have hr := Or.resolve_left hr h'.left
           simp [Regex.matchEnd, hr, h'.left]
-          rw [h'.right] at h
-          apply ih at h
-          cases h with
-          | inl h => sorry
-          | inr h =>
-            right
-            exact h
-    · simp at hr
+          rw [h'.right, Regex.deriv] at h
+          cases k : (((r₁.prune.deriv x).plus (r₂.prune.deriv x))).matchEnd (x :: s₁, xs) with
+          | none =>
+            simp [k] at h
+            apply add_matchEnd_none at k
+            simp [k.right, h]
+          | some l =>
+            simp at ih
+            cases ih (r₁.deriv x) (r₂.prune.deriv x) (x::s₁) <;> simp_all
+    · simp at hr ih
       simp [Regex.prune_not_nullable, hr, Regex.deriv] at h
-      apply ih at h
-      cases h with
-      | inl h =>
-        left
-        simp [Regex.matchEnd, hr, Regex.prune_not_nullable]
-        exact h
-      | inr h =>
-        right
-        simp [Regex.matchEnd, hr, Regex.prune_not_nullable]
-        exact h
+      cases ih (r₁.deriv x) (r₂.deriv x) (x::s₁) <;> simp_all [Regex.matchEnd]
 
--- TODO: Add restriction to r₂ case
 theorem add_rmatch (r₁ r₂ : Regex α) (s : List α) (loc : Loc α) :
   (r₁.plus r₂).rmatch s = some loc →
   (r₁.rmatch s = some loc ∨ r₂.rmatch s = some loc) := by

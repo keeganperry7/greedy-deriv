@@ -68,7 +68,7 @@ def highNullable : Regex α → Bool
   | mul r₁ r₂ => r₁.highNullable && r₂.highNullable
   | star r => r.highNullable
 
-theorem highNullable_nullable {α : Type u} (r : Regex α) :
+theorem highNullable_nullable {α : Type u} {r : Regex α} :
   r.highNullable → r.nullable := by
   induction r with
   | zero => simp
@@ -116,10 +116,10 @@ def prune (r : Regex α) : Regex α :=
       else plus r₁ (r₂.prune)
   | r, true, false => r
 
-theorem prune_highNullable {α : Type u} (r : Regex α) (h : r.nullable) (hh : r.highNullable) :
+theorem prune_highNullable {α : Type u} {r : Regex α} (h : r.highNullable) :
   r.prune = one := by
   unfold prune
-  rw [h, hh]
+  rw [h, highNullable_nullable h]
   simp
 
 theorem prune_not_nullable {α : Type u} (r : Regex α) (hn : ¬r.nullable) :
@@ -144,80 +144,55 @@ theorem prune_plus_nullable_highNullable {α : Type u} (r₁ r₂ : Regex α) (h
   rw [hn]
   simp [hr]
 
-def matchEnd : Regex α → Loc α → Option (Loc α) → Option (Loc α)
-  | r, ⟨u, []⟩, cur =>
+def matchEnd : Regex α → Loc α → Option (Loc α)
+  | r, (u, []) =>
     if r.nullable
-      then some ⟨u, []⟩
-      else cur
-  | r, ⟨u, c :: v⟩, cur =>
-    if r.nullable
-      then matchEnd (r.prune.deriv c) ⟨c :: u, v⟩ (some ⟨u, c::v⟩)
-      else matchEnd (r.prune.deriv c) ⟨c :: u, v⟩ cur
+      then some (u, [])
+      else none
+  | r, (u, c :: v) =>
+    match matchEnd (r.prune.deriv c) (c :: u, v) with
+    | none => if r.nullable then some (u, c::v) else none
+    | some loc => some loc
 termination_by _ loc => loc.right.length
 
 def rmatch : Regex α → List α → Option (Loc α)
-  | r, s => matchEnd r ⟨[], s⟩ none
+  | r, s => matchEnd r ([], s)
 
-theorem matchEnd_soundness (r : Regex α) (s₁ s₂ s₁' s₂': List α) (cur : Option (Loc α)) :
-  (some (Loc.word (s₁, s₂)) = cur.map Loc.word  ∨ cur = none) →
-  r.matchEnd (s₁, s₂) cur = some (s₁', s₂') → Loc.word (s₁, s₂) = Loc.word (s₁', s₂') := by
-  intro h_cur h
-  induction s₂ generalizing r s₁ cur with
+theorem matchEnd_soundness (r : Regex α) (s₁ s₂ s₁' s₂' : List α) :
+  r.matchEnd (s₁, s₂) = some (s₁', s₂') → Loc.word (s₁, s₂) = Loc.word (s₁', s₂') := by
+  intro h
+  induction s₂ generalizing r s₁ with
   | nil =>
-    cases h_cur with
-    | inl h_cur =>
-      simp [matchEnd] at h
-      split_ifs at h
-      · simp at h
-        rw [h]
-      · rw [h, Option.map_some'] at h_cur
-        simp_all
-    | inr h_cur =>
-      rw [h_cur] at h
-      simp [matchEnd] at h
-      rw [h.right]
+    simp [matchEnd] at h
+    rw [h.right]
   | cons x xs ih =>
-    cases h_cur with
-    | inl h_cur =>
-      simp [matchEnd] at h
-      split_ifs at h with hr
-      · have ih := ih _ _ _ (by simp) h
-        rw [←ih]
-        simp
-      · have ih := ih (r.prune.deriv x) (x::s₁) cur
-        rw [←h_cur] at ih
-        have ih := ih (by simp) h
-        rw [←ih]
-        simp
-    | inr h_cur =>
-      rw [h_cur] at h
-      simp [matchEnd] at h
-      split_ifs at h with hr
-      · have ih := ih _ _ _ (by simp) h
-        rw [←ih]
-        simp
-      · have ih := ih _ _ none (by simp) h
-        rw [←ih]
-        simp
+    simp [matchEnd] at h
+    cases k : (r.prune.deriv x).matchEnd (x::s₁, xs) with
+    | none =>
+      simp [k] at h
+      rw [h.right]
+    | some l =>
+      simp [k] at h
+      rw [h] at k
+      apply ih at k
+      rw [←k]
+      simp
 
 theorem soundness (r : Regex α) (s : List α) (loc : Loc α) :
   r.rmatch s = some loc → s = loc.word := by
+  intro h
   cases s with
   | nil =>
-    intro h
-    unfold rmatch matchEnd at h
-    simp at h
+    simp [rmatch, matchEnd] at h
     simp [←h.right]
   | cons x xs =>
-    simp [rmatch, matchEnd]
-    split_ifs with h'
-    · intro h
-      apply matchEnd_soundness at h
-      simp at h
-      exact h
-      simp
-    · intro h
-      apply matchEnd_soundness at h
-      simp at h
-      exact h
-      simp
+    simp [rmatch, matchEnd] at h
+    cases k : (r.prune.deriv x).matchEnd ([x], xs) with
+    | none =>
+      simp [k] at h
+      simp [←h.right]
+    | some l =>
+      simp [k] at h
+      rw [h] at k
+      apply matchEnd_soundness at k
+      exact k
