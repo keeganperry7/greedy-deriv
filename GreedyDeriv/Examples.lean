@@ -42,8 +42,9 @@ example : Greedy r2 ⟨['a', 'a'], ['b']⟩ := by
         simp at hs
       | plus_right h =>
         cases h with
-        | mul h₁ h₂ =>
+        | mul h₁ h₂ hs' =>
           cases h₁
+          rw [←hs'] at hs
           simp at hs
   | inr hs' =>
     absurd hs'.left
