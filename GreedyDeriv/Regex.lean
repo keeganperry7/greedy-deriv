@@ -34,10 +34,11 @@ inductive matches' : Regex α → List α → Prop where
   | plus_right {r₁ r₂ : Regex α} {s : List α} :
     r₂.matches' s →
     (r₁.plus r₂).matches' s
-  | mul {r₁ r₂ : Regex α} {s₁ s₂ : List α} :
+  | mul {r₁ r₂ : Regex α} {s₁ s₂ s : List α} :
     r₁.matches' s₁ →
     r₂.matches' s₂ →
-    (r₁.mul r₂).matches' (s₁ ++ s₂)
+    s₁ ++ s₂ = s →
+    (r₁.mul r₂).matches' s
   | star_nil {r : Regex α} :
     r.star.matches' []
   | star {r : Regex α} {s₁ s₂ s : List α} :
@@ -58,6 +59,33 @@ def nullable : Regex α → Bool
   | plus r₁ r₂ => r₁.nullable || r₂.nullable
   | mul r₁ r₂ => r₁.nullable && r₂.nullable
   | star _ => true
+
+theorem nullable_matches' {α : Type u} {r : Regex α} :
+  r.nullable → r.matches' [] := by
+  intro h
+  induction r with
+  | zero => simp at h
+  | one => apply matches'.one
+  | char => simp at h
+  | plus r₁ r₂ ih₁ ih₂ =>
+    simp at h
+    cases h with
+    | inl h =>
+      apply ih₁ at h
+      apply matches'.plus_left
+      exact h
+    | inr h =>
+      apply ih₂ at h
+      apply matches'.plus_right
+      exact h
+  | mul r₁ r₂ ih₁ ih₂ =>
+    simp at h
+    simp [h] at ih₁ ih₂
+    apply matches'.mul
+    exact ih₁
+    exact ih₂
+    rfl
+  | star => apply matches'.star_nil
 
 @[simp]
 def highNullable : Regex α → Bool
@@ -164,13 +192,13 @@ theorem matchEnd_soundness (r : Regex α) (s₁ s₂ s₁' s₂' : List α) :
   induction s₂ generalizing r s₁ with
   | nil =>
     simp [matchEnd] at h
-    rw [h.right]
+    rw [h.right.left, h.right.right]
   | cons x xs ih =>
     simp [matchEnd] at h
     cases k : (r.prune.deriv x).matchEnd (x::s₁, xs) with
     | none =>
       simp [k] at h
-      rw [h.right]
+      rw [h.right.left, h.right.right]
     | some l =>
       simp [k] at h
       rw [h] at k
