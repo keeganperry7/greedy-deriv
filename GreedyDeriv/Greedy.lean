@@ -62,7 +62,7 @@ theorem correctness (r : Regex α) (l : Loc α) :
 theorem uniqueness (r : Regex α) (l₁ l₂ : Loc α) (hl : l₁.word = l₂.word) :
   Greedy r l₁ ∧ Greedy r l₂ → l₁ = l₂ := by
   intro ⟨h₁, h₂⟩
-  induction h₁ with
+  induction h₁ generalizing l₂ with
   | one =>
     cases h₂
     simp_all
@@ -71,7 +71,9 @@ theorem uniqueness (r : Regex α) (l₁ l₂ : Loc α) (hl : l₁.word = l₂.wo
     simp_all
   | plus_left r₁ r₂ loc h₁ ih₁ =>
     cases h₂ with
-    | plus_left => simp_all
+    | plus_left =>
+      apply ih₁ at hl
+      simp_all
     | plus_right _ _ _ hn =>
       absurd hn
       apply correctness at h₁
@@ -86,7 +88,27 @@ theorem uniqueness (r : Regex α) (l₁ l₂ : Loc α) (hl : l₁.word = l₂.wo
       use l₂.left.reverse
       use l₂.right
       simp_all
-    | plus_right => simp_all
-  | mul => sorry
-  | star_nil => sorry
+    | plus_right =>
+      apply ih at hl
+      simp_all
+  | mul r₁ r₂ s₁ s₂ s₃ h h' ih ih'  =>
+    cases h₂ with
+    | mul _ _ s₁' s₂' s₃' k k' =>
+      sorry
+  | star_nil r s hn =>
+    apply correctness at h₂
+    by_cases hl' : l₂.left = []
+    · simp at hl
+      simp at hl'
+      rw [hl'] at hl
+      simp at hl
+      rw [hl, ←hl']
+      rfl
+    · absurd hn
+      use l₂.left.reverse
+      use l₂.right
+      simp at hl
+      rw [hl]
+      simp
+      exact ⟨hl', h₂⟩
   | star => sorry
