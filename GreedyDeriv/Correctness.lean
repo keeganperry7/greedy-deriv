@@ -119,10 +119,55 @@ theorem add_rmatch (r₁ r₂ : Regex α) (s : List α) (loc : Loc α) :
   simp [Regex.rmatch]
   exact h
 
+theorem mul_rmatch (r₁ r₂ : Regex α) (s s₁ s₂ : List α) :
+  (r₁.mul r₂).rmatch s = some (s₁, s₂) →
+  ∃ u v t₁ t₂ : List α, u ++ v = s ∧ t₂.reverse ++ t₁.reverse = s₁
+  ∧ r₁.rmatch u = some (t₁.reverse, t₂ ++ s₂) ∧ r₂.rmatch v = some (t₂.reverse, s₂) := by
+  sorry
+
+theorem rmatch_matches (r : Regex α) (s s₁ s₂ : List α) :
+  r.rmatch s = some (s₁, s₂) → r.matches' s₁.reverse := by
+  intro h
+  induction r generalizing s s₁ s₂ with
+  | zero => simp at h
+  | one =>
+    simp at h
+    simp [h]
+    apply Regex.matches'.one
+  | char c =>
+    rw [char_rmatch] at h
+    let ⟨s', h⟩ := h
+    simp at h
+    simp [←h.right.left]
+    apply Regex.matches'.char
+  | plus r₁ r₂ ih₁ ih₂ =>
+    apply add_rmatch at h
+    cases h with
+    | inl h =>
+      apply ih₁ at h
+      apply Regex.matches'.plus_left
+      exact h
+    | inr h =>
+      apply ih₂ at h
+      apply Regex.matches'.plus_right
+      exact h
+  | mul r₁ r₂ ih₁ ih₂ =>
+    apply mul_rmatch at h
+    let ⟨u, v, t₁, t₂, hs, hs₁, hu, hv⟩ := h
+    apply ih₁ at hu
+    apply ih₂ at hv
+    simp [←hs₁]
+    simp at hu hv
+    apply Regex.matches'.mul
+    exact hu
+    exact hv
+    rfl
+  | star => sorry
+
 -- Main correctness theorem
 theorem rmatch_greedy (r : Regex α) (s : List α) (loc : Loc α) :
   r.rmatch s = some loc → Greedy r loc := by
-  induction r with
+  induction r generalizing s loc with
   | zero => simp
   | one =>
     intro h
@@ -148,5 +193,15 @@ theorem rmatch_greedy (r : Regex α) (s : List α) (loc : Loc α) :
       apply Greedy.plus_right
       sorry
       exact h
-  | mul => sorry
+  | mul r₁ r₂ ih₁ ih₂ =>
+    intro h
+    apply mul_rmatch at h
+    let ⟨u, v, t₁, t₂, hs, hs₁, hu, hv⟩ := h
+    apply ih₁ at hu
+    apply ih₂ at hv
+    rw [eq_comm, Prod.fst_eq_iff] at hs₁
+    rw [hs₁]
+    apply Greedy.mul
+    exact hu
+    exact hv
   | star => sorry
