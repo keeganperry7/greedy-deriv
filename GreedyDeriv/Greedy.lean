@@ -44,10 +44,11 @@ theorem correctness (r : Regex α) (l : Loc α) :
     apply Regex.matches'.plus_right
     exact ih
   | mul r₁ r₂ s₁ s₂ s₃ h₁ h₂ ih₁ ih₂ =>
-    simp
     apply Regex.matches'.mul
-    simp_all
-    simp_all
+    simp [h₁, h₂] at ih₁ ih₂
+    exact ih₁
+    exact ih₂
+    simp
   | star_nil =>
     simp
     apply Regex.matches'.star_nil
@@ -103,7 +104,6 @@ theorem uniqueness (r : Regex α) (l₁ l₂ : Loc α) (hl : l₁.word = l₂.wo
       rw [hl'] at hl
       simp at hl
       rw [hl, ←hl']
-      rfl
     · absurd hn
       use l₂.left.reverse
       use l₂.right
