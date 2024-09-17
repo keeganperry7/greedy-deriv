@@ -1,5 +1,5 @@
 
-def Loc (α : Type u) := List α × List α
+abbrev Loc (α : Type u) := List α × List α
 
 @[simp]
 def Loc.left (loc : Loc α) : List α := loc.1
