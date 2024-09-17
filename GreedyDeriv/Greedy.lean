@@ -95,7 +95,39 @@ theorem uniqueness (r : Regex α) (l₁ l₂ : Loc α) (hl : l₁.word = l₂.wo
   | mul r₁ r₂ s₁ s₂ s₃ h h' ih ih'  =>
     cases h₂ with
     | mul _ _ s₁' s₂' s₃' k k' =>
-      sorry
+      cases r₁ with
+      | zero => cases k
+      | one =>
+        generalize hh : s₁.reverse = t₁
+        generalize hk : s₁'.reverse = t₁'
+        rw [hh] at h
+        rw [hk] at k
+        cases h
+        cases k
+        simp at hh hk
+        simp [hh, hk] at hl
+        have ih' := ih' (s₂'.reverse, s₃')
+        simp [hl] at ih'
+        apply ih' at k'
+        simp_all
+      | char c =>
+        generalize hh : s₁.reverse = t₁
+        generalize hk : s₁'.reverse = t₁'
+        rw [hh] at h
+        rw [hk] at k
+        cases h
+        cases k
+        simp at hh hk
+        simp [hh, hk] at hl
+        have ih' := ih' (s₂'.reverse, s₃')
+        simp [hl] at ih'
+        apply ih' at k'
+        simp_all
+      | plus =>
+        sorry
+      | mul => sorry
+      | star =>
+        sorry
   | star_nil r s hn =>
     apply correctness at h₂
     by_cases hl' : l₂.left = []
