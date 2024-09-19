@@ -21,21 +21,27 @@ def r2 := ((Regex.char 'a').plus ((Regex.char 'a').mul (Regex.char 'b'))).star
 #eval r2.rmatch "aab".toList
 
 example : Greedy r2 ⟨['a', 'a'], ['b']⟩ := by
-  apply Greedy.star _ ['a'] ['a'] ['b']
+  apply Greedy.star
+  apply Greedy.plus_left
+  apply Greedy.mul _ _ ['a'] ['a']
   apply Greedy.plus_left
   apply Greedy.char
-  apply Greedy.star _ ['a'] [] ['b']
+  apply Greedy.star
+  apply Greedy.plus_left
+  apply Greedy.mul _ _ ['a'] []
   apply Greedy.plus_left
   apply Greedy.char
-  apply Greedy.star_nil
+  apply Greedy.star
+  apply Greedy.plus_right
   intro h
-  let ⟨s₃, s₄, hs, hs', h⟩ := h
-  apply List.append_eq_singleton at hs'
-  cases hs' with
+  let ⟨s₃, s₄, hs, h⟩ := h
+  simp at hs
+  apply List.append_eq_singleton at hs
+  cases hs with
   | inl hs' =>
     rw [hs'.left] at h
     cases h with
-    | star h₁ h₂ hs =>
+    | mul h₁ h₂ hs =>
       cases h₁ with
       | plus_left h =>
         cases h
@@ -46,9 +52,22 @@ example : Greedy r2 ⟨['a', 'a'], ['b']⟩ := by
           cases h₁
           rw [←hs'] at hs
           simp at hs
-  | inr hs' =>
-    absurd hs'.left
-    exact hs
+  | inr hs =>
+    rw [hs.left] at h
+    cases h with
+    | mul h₁ h₂ hs =>
+      cases h₁ with
+      | plus_left h =>
+        cases h
+        simp at hs
+      | plus_right h =>
+        cases h with
+        | mul h₁ h₂ hs' =>
+          cases h₁
+          rw [←hs'] at hs
+          simp at hs
+  apply Greedy.one
+
 
 -- c + ab
 def r3 := (Regex.char 'c').plus ((Regex.char 'a').mul (Regex.char 'b'))
