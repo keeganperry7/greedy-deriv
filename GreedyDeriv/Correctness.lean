@@ -72,7 +72,7 @@ theorem add_matchEnd_none (r₁ r₂ : Regex α) (s₁ s₂ : List α) :
 
 theorem add_matchEnd (r₁ r₂ : Regex α) (s₁ s₂ : List α) (loc : Option (Loc α)) :
   (r₁.plus r₂).matchEnd (s₁, s₂) = loc →
-  r₁.matchEnd (s₁, s₂) = loc ∨ r₂.matchEnd (s₁, s₂) = loc := by
+  r₁.matchEnd (s₁, s₂) = loc ∨ (r₂.matchEnd (s₁, s₂) = loc ∧ r₁.matchEnd (s₁, s₂) = none) := by
   induction s₂ generalizing r₁ r₂ s₁ loc with
   | nil =>
     simp [Regex.matchEnd]
@@ -103,7 +103,8 @@ theorem add_matchEnd (r₁ r₂ : Regex α) (s₁ s₂ : List α) (loc : Option 
           | none =>
             simp [k] at h
             apply add_matchEnd_none at k
-            simp [k.right, h]
+            simp [h'.left] at k
+            simp [k, h]
           | some l =>
             simp at ih
             cases ih (r₁.deriv x) (r₂.prune.deriv x) (x::s₁) <;> simp_all
@@ -113,7 +114,7 @@ theorem add_matchEnd (r₁ r₂ : Regex α) (s₁ s₂ : List α) (loc : Option 
 
 theorem add_rmatch (r₁ r₂ : Regex α) (s : List α) (loc : Loc α) :
   (r₁.plus r₂).rmatch s = some loc →
-  (r₁.rmatch s = some loc ∨ r₂.rmatch s = some loc) := by
+  (r₁.rmatch s = some loc ∨ (r₂.rmatch s = some loc ∧ r₁.rmatch s = none)) := by
   intro h
   apply add_matchEnd at h
   simp [Regex.rmatch]
@@ -183,6 +184,7 @@ theorem rmatch_matches (r : Regex α) (s s₁ s₂ : List α) :
       apply Regex.matches'.plus_left
       exact h
     | inr h =>
+      let ⟨h, _⟩ := h
       apply ih₂ at h
       apply Regex.matches'.plus_right
       exact h
@@ -224,18 +226,15 @@ theorem rmatch_greedy (r : Regex α) (s : List α) (loc : Loc α) :
       apply Greedy.plus_left
       exact h
     | inr h =>
-      have hs : s = loc.word := by
-        apply Regex.soundness at h
-        exact h
-      apply ih₂ at h
+      let ⟨h₂, h₁⟩ := h
+      have hs : s = loc.word := Regex.soundness _ _ _ h₂
+      apply ih₂ at h₂
       apply Greedy.plus_right
-      -- TODO: Add this to add_rmatch
-      have tmp : r₁.rmatch s = none := sorry
-      apply rmatch_not_matches at tmp
+      apply rmatch_not_matches at h₁
       rw [←hs]
       simp
-      exact tmp
-      exact h
+      exact h₁
+      exact h₂
   | mul r₁ r₂ ih₁ ih₂ =>
     intro h
     apply mul_rmatch at h
