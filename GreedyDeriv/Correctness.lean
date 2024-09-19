@@ -119,11 +119,46 @@ theorem add_rmatch (r₁ r₂ : Regex α) (s : List α) (loc : Loc α) :
   simp [Regex.rmatch]
   exact h
 
+theorem add_rmatch_none (r₁ r₂ : Regex α) (s : List α) :
+  (r₁.plus r₂).rmatch s = none →
+  r₁.rmatch s = none ∧ r₂.rmatch s = none := by
+  intro h
+  apply add_matchEnd_none at h
+  simp [Regex.rmatch]
+  exact h
+
 theorem mul_rmatch (r₁ r₂ : Regex α) (s s₁ s₂ : List α) :
   (r₁.mul r₂).rmatch s = some (s₁, s₂) →
   ∃ u v t₁ t₂ : List α, u ++ v = s ∧ t₂.reverse ++ t₁.reverse = s₁
   ∧ r₁.rmatch u = some (t₁.reverse, t₂ ++ s₂) ∧ r₂.rmatch v = some (t₂.reverse, s₂) := by
   sorry
+
+theorem rmatch_not_matches (r : Regex α) (s : List α) :
+  r.rmatch s = none → ∀ s₁ s₂, s₁ ++ s₂ = s → ¬r.matches' s₁ := by
+  intro h s₁ s₂ hs
+  induction r with
+  | zero =>
+    intro h'
+    cases h'
+  | one => simp [Regex.rmatch] at h
+  | char c =>
+    intro h'
+    cases h'
+    rw [←hs] at h
+    simp [Regex.rmatch, Regex.matchEnd] at h
+  | plus r₁ r₂ ih₁ ih₂ =>
+    apply add_rmatch_none at h
+    simp [h] at ih₁ ih₂
+    intro h'
+    cases h' with
+    | plus_left h' =>
+      absurd h'
+      exact ih₁
+    | plus_right h' =>
+      absurd h'
+      exact ih₂
+  | mul r₁ r₂ ih₁ ih₂ => sorry
+  | star r ih => sorry
 
 theorem rmatch_matches (r : Regex α) (s s₁ s₂ : List α) :
   r.rmatch s = some (s₁, s₂) → r.matches' s₁.reverse := by
@@ -189,9 +224,17 @@ theorem rmatch_greedy (r : Regex α) (s : List α) (loc : Loc α) :
       apply Greedy.plus_left
       exact h
     | inr h =>
+      have hs : s = loc.word := by
+        apply Regex.soundness at h
+        exact h
       apply ih₂ at h
       apply Greedy.plus_right
-      sorry
+      -- TODO: Add this to add_rmatch
+      have tmp : r₁.rmatch s = none := sorry
+      apply rmatch_not_matches at tmp
+      rw [←hs]
+      simp
+      exact tmp
       exact h
   | mul r₁ r₂ ih₁ ih₂ =>
     intro h
