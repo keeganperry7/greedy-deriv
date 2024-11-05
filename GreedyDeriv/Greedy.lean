@@ -1,7 +1,48 @@
 import GreedyDeriv.Regex
 import Mathlib.Tactic
 
-variable {α : Type u}
+variable {α : Type u} [DecidableEq α]
+
+open Regex
+
+def Regex.accept : Regex α → Loc α → (Loc α → Option (Loc α)) → Option (Loc α)
+  | zero, _, _ => none
+  | one, loc, k => k loc
+  | char _, (_, []), _ => none
+  | char c, (u, d::v), k => if c = d then k (d::u, v) else none
+  | plus r₁ r₂, loc, k => (r₁.accept loc k).or (r₂.accept loc k)
+  | mul r₁ r₂, loc, k => r₁.accept loc (fun loc' => r₂.accept loc' k)
+  | star r, loc, k => (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then r.star.accept loc' k else none)).or (k loc)
+termination_by r loc => (r.size, loc.right.length)
+
+def Regex.gmatch : Regex α → List α → Option (Loc α)
+  | r, s => r.accept ([], s) some
+
+theorem zero_accept (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) :
+  zero.accept (s₁, s₂) k = none := by
+  simp [accept]
+
+theorem one_accept (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) :
+  one.accept (s₁, s₂) k = k (s₁, s₂) := by
+  simp [accept]
+
+theorem char_nil_accept (c : α) (s : List α) (k : Loc α → Option (Loc α)) :
+  (char c).accept (s, []) k = none := by
+  simp [accept]
+
+theorem char_accept (c d : α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) :
+  (char c).accept (s₁, d::s₂) k = if c = d then k (d::s₁, s₂) else none := by
+  simp [accept]
+
+theorem add_accept_none (r₁ r₂ : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) :
+  (r₁.plus r₂).accept (s₁, s₂) k = none ↔
+  r₁.accept (s₁, s₂) k = none ∧ r₂.accept (s₁, s₂) k = none := by
+  simp [accept]
+
+theorem add_accept (r₁ r₂ : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) (loc : Loc α) :
+  (r₁.plus r₂).accept (s₁, s₂) k = some loc ↔
+  r₁.accept (s₁, s₂) k = some loc ∨ (r₁.accept (s₁, s₂) k = none ∧ (r₂.accept (s₁, s₂) k = some loc)) := by
+  simp [accept]
 
 inductive Greedy : Regex α → Loc α → Prop
   | one (s : List α) :

@@ -91,3 +91,56 @@ example : Greedy r4 ⟨['a', 'a'], ['a']⟩ := by
   apply Greedy.plus_left
   apply Greedy.char
   apply Greedy.char
+
+-- a*a
+def r5 := (Regex.char 'a').star.mul (Regex.char 'a')
+#eval r5.rmatch "aa".toList
+#eval r5.gmatch "aa".toList
+
+example : ¬Greedy r5 ⟨['a', 'a'], []⟩ := by
+  generalize hs : ['a', 'a'] = s
+  intro h
+  cases h with
+  | mul _ _ s₁ s₂ _  h₁ h₂ =>
+    generalize hs₁ : s₁.reverse = s₁'
+    generalize hs₂ : s₂.reverse = s₂'
+    rw [hs₁] at h₁
+    rw [hs₂] at h₂
+    cases h₂
+    cases h₁ with
+    | star _ _ h' =>
+      cases h' with
+      | plus_left _ _ _ h =>
+        cases h with
+        | mul _ _ s₁' s₂' _ h₁ h₂ =>
+          generalize hs₁' : s₁'.reverse = s₁''
+          rw [hs₁'] at h₁
+          cases h₁
+          simp [hs₂] at hs
+          simp [hs₁', hs] at hs₁
+          simp [hs₁] at h₂
+          cases h₂ with
+          | star _ _ h' =>
+            cases h' with
+            | plus_left _ _ _ h =>
+              generalize hs₁'' : [] = s₁''
+              rw [hs₁''] at h
+              cases h with
+              | mul _ _ _ _ _ h₁ =>
+                simp at hs₁''
+                rw [hs₁''.right] at h₁
+                cases h₁
+            | plus_right _ _ _ h =>
+              simp at hs₂
+              rw [hs₂] at h
+              absurd h
+              use ['a']
+              simp
+              apply Regex.matches'.mul
+              apply Regex.matches'.char
+              apply Regex.matches'.star_nil
+              simp
+      | plus_right _ _ _ _ h' =>
+        simp [hs₁, hs₂] at hs
+        rw [←hs] at h'
+        cases h'
