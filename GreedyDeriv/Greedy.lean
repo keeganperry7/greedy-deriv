@@ -18,6 +18,223 @@ termination_by r loc => (r.size, loc.right.length)
 def Regex.gmatch : Regex α → List α → Option (Loc α)
   | r, s => r.accept ([], s) some
 
+theorem accept_nil_none (r : Regex α) (s : List α) (k : Loc α → Option (Loc α)) :
+  ¬r.nullable ∨ k (s, []) = none →
+  r.accept (s, []) k = none := by
+  intro h
+  induction r generalizing k with
+  | zero => simp [accept]
+  | one =>
+    simp at h
+    simp [accept]
+    exact h
+  | char => simp [accept]
+  | plus r₁ r₂ ih₁ ih₂ =>
+    simp [accept]
+    simp at ih₁ ih₂ h
+    cases h with
+    | inl h =>
+      constructor
+      · apply ih₁
+        exact Or.inl h.left
+      · apply ih₂
+        exact Or.inl h.right
+    | inr h =>
+      constructor
+      · apply ih₁
+        exact Or.inr h
+      · apply ih₂
+        exact Or.inr h
+  | mul r₁ r₂ ih₁ ih₂ =>
+    simp at h
+    simp [accept]
+    cases h with
+    | inl h =>
+      by_cases hr : r₁.nullable
+      · apply h at hr
+        apply ih₁
+        right
+        apply ih₂
+        simp
+        exact Or.inl hr
+      · apply ih₁
+        exact Or.inl hr
+    | inr h =>
+      apply ih₁
+      right
+      apply ih₂
+      exact Or.inr h
+  | star r ih =>
+    simp at h
+    simp [accept]
+    constructor
+    · apply ih
+      simp
+    · exact h
+
+theorem accept_nil_some (r : Regex α) (s : List α) (k : Loc α → Option (Loc α)) :
+  r.nullable ∧ k (s, []) = some (s, []) →
+  r.accept (s, []) k = some (s, []) := by
+  intro ⟨hr, hk⟩
+  induction r generalizing k with
+  | zero => simp at hr
+  | one =>
+    simp [accept]
+    exact hk
+  | char => simp at hr
+  | plus r₁ r₂ ih₁ ih₂ =>
+    simp [accept]
+    simp at hr
+    cases hr with
+    | inl hr => exact Or.inl (ih₁ k hr hk)
+    | inr hr =>
+      by_cases hr' : r₁.nullable
+      · exact Or.inl (ih₁ k hr' hk)
+      · refine Or.inr ⟨?_, ih₂ k hr hk⟩
+        apply accept_nil_none
+        exact Or.inl hr'
+  | mul r₁ r₂ ih₁ ih₂ =>
+    simp [accept]
+    simp at hr
+    apply ih₁
+    exact hr.left
+    apply ih₂
+    exact hr.right
+    exact hk
+  | star r _ =>
+    simp [accept]
+    right
+    refine ⟨?_, hk⟩
+    apply accept_nil_none
+    simp
+
+theorem accept_deriv_some (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) :
+  r.nullable ∧ (r.prune.deriv x).accept (x::s₁, s₂) k = none ∧ k (s₁, x::s₂) = some (s₁, x::s₂) →
+  r.accept (s₁, x::s₂) k = some (s₁, x::s₂) := by
+  intro ⟨hr, h, hk⟩
+  induction r with
+  | zero => simp at hr
+  | one =>
+    simp [accept]
+    exact hk
+  | char => simp at hr
+  | plus r₁ r₂ ih₁ ih₂ =>
+    sorry
+  | mul => sorry
+  | star => sorry
+
+theorem accept_deriv_none (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) :
+  ¬r.nullable ∧ (r.prune.deriv x).accept (x::s₁, s₂) k = none →
+  r.accept (s₁, x::s₂) k = none := by
+  intro ⟨hn, h⟩
+  induction r with
+  | zero => simp [accept]
+  | one => simp at hn
+  | char c =>
+    simp [accept] at *
+    intro hc
+    simp [hc] at h
+    simp [accept] at h
+    exact h
+  | plus r₁ r₂ ih₁ ih₂ =>
+    rw [prune_not_nullable hn] at h
+    simp [accept] at h
+    let ⟨h₁, h₂⟩ := h
+    simp at hn
+    rw [prune_not_nullable (by simp [hn.left])] at ih₁
+    rw [prune_not_nullable (by simp [hn.right])] at ih₂
+    apply ih₁ at h₁
+    apply ih₂ at h₂
+    simp [accept]
+    exact ⟨h₁, h₂⟩
+    simp [hn.right]
+    simp [hn.left]
+  | mul => sorry
+  | star => simp at hn
+
+-- Maybe need to induct over r and s₂
+theorem accept_deriv (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) (loc : Loc α) :
+  (r.prune.deriv x).accept (x::s₁, s₂) k = some loc →
+  r.accept (s₁, x::s₂) k = some loc := by
+  intro h
+  induction r generalizing k with
+  | zero => simp [accept] at *
+  | one => simp [accept] at *
+  | char c =>
+    simp [accept] at *
+    split_ifs at h with hc
+    · simp [hc]
+      simp [accept] at h
+      exact h
+    · simp [accept] at h
+  | plus r₁ r₂ ih₁ ih₂ =>
+    simp [accept]
+    by_cases hr : r₁.highNullable
+    · rw [prune_plus_left_highNullable hr] at h
+      simp [accept] at h
+    · by_cases hr' : (r₁.plus r₂).nullable
+      · simp at hr'
+        cases hr' with
+        | inl hr' =>
+          rw [prune_plus_left_nullable hr' hr] at h
+          apply ih₁ at h
+          exact Or.inl h
+        | inr hr' =>
+          by_cases hr'' : r₁.nullable
+          · rw [prune_plus_left_nullable hr'' hr] at h
+            apply ih₁ at h
+            exact Or.inl h
+          · rw [prune_plus_right_nullable hr'' hr' hr] at h
+            simp [accept] at h
+            cases h with
+            | inl h =>
+              apply ih₁ at h
+              exact Or.inl h
+            | inr h =>
+              let ⟨h₁, h₂⟩ := h
+              apply ih₂ at h₂
+              refine Or.inr ⟨?_, h₂⟩
+              apply accept_deriv_none
+              exact ⟨hr'', h₁⟩
+      · rw [prune_not_nullable hr'] at h
+        simp [accept] at h
+        simp at hr'
+        cases h with
+        | inl h =>
+          rw [prune_not_nullable] at ih₁
+          apply ih₁ at h
+          exact Or.inl h
+          simp
+          exact hr'.left
+        | inr h =>
+          let ⟨h₁, h₂⟩ := h
+          rw [prune_not_nullable (by simp [hr'.right])] at ih₂
+          apply ih₂ at h₂
+          refine Or.inr ⟨?_, h₂⟩
+          apply accept_deriv_none
+          rw [prune_not_nullable (by simp [hr'.left])]
+          exact ⟨by simp [hr'.left], h₁⟩
+  | mul r₁ r₂ ih₁ ih₂ => sorry
+  | star r ih =>
+    by_cases hr : r.highNullable
+    · rw [prune_star_highNullable hr] at h
+      simp [accept] at h
+    · rw [prune_star_not_highNullable hr] at h
+      simp [Regex.deriv] at h
+      rw [accept] at h
+
+      by_cases hr' : r.nullable
+      · sorry
+      · rw [prune_not_nullable hr'] at ih
+        apply ih at h
+        rw [accept]
+        simp
+        left
+        -- True since ¬r.nullable, but also true in general
+        -- i.e. (r.mul r.star).accept (s₁, s₂) k = some loc → r.star.accept (s₁, s₂) k = some loc
+        -- difficulty is showing when r captures some input, since then the condition is satisfied
+        sorry
+
 theorem zero_accept (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) :
   zero.accept (s₁, s₂) k = none := by
   simp [accept]
@@ -44,134 +261,23 @@ theorem add_accept (r₁ r₂ : Regex α) (s₁ s₂ : List α) (k : Loc α → 
   r₁.accept (s₁, s₂) k = some loc ∨ (r₁.accept (s₁, s₂) k = none ∧ (r₂.accept (s₁, s₂) k = some loc)) := by
   simp [accept]
 
-inductive Greedy : Regex α → Loc α → Prop
-  | one (s : List α) :
-    Greedy .one ⟨[], s⟩
-  | char (c : α) (s : List α) :
-    Greedy (.char c) ⟨[c], s⟩
-  | plus_left (r₁ r₂ : Regex α) (loc : Loc α) :
-    Greedy r₁ loc →
-    Greedy (r₁.plus r₂) loc
-  | plus_right (r₁ r₂ : Regex α) (loc : Loc α) :
-    ¬(∃ s₃ s₄, s₃ ++ s₄ = loc.word ∧ r₁.matches' s₃) →
-    Greedy r₂ loc →
-    Greedy (r₁.plus r₂) loc
-  | mul (r₁ r₂ : Regex α) (s₁ s₂ s₃ : List α) :
-    Greedy r₁ ⟨s₁.reverse, s₂ ++ s₃⟩ →
-    Greedy r₂ ⟨s₂.reverse, s₃⟩ →
-    Greedy (r₁.mul r₂) ⟨s₂.reverse ++ s₁.reverse, s₃⟩
-  | star (r : Regex α) (s : Loc α) :
-    Greedy ((r.mul r.star).plus Regex.one) s →
-    Greedy r.star s
-
-theorem correctness (r : Regex α) (l : Loc α) :
-  Greedy r l → r.matches' l.left.reverse := by
+theorem star_accept_none (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) :
+  r.star.accept (s₁, s₂) k = none → k (s₁, s₂) = none := by
   intro h
-  induction h with
-  | one =>
-    simp
-    apply Regex.matches'.one
-  | char c =>
-    simp
-    apply Regex.matches'.char
-  | plus_left r₁ r₂ loc _ ih =>
-    apply Regex.matches'.plus_left
-    exact ih
-  | plus_right r₁ r₂ loc _ _ ih =>
-    apply Regex.matches'.plus_right
-    exact ih
-  | mul r₁ r₂ s₁ s₂ s₃ h₁ h₂ ih₁ ih₂ =>
-    apply Regex.matches'.mul
-    simp [h₁, h₂] at ih₁ ih₂
-    exact ih₁
-    exact ih₂
-    simp
-  | star r s _ ih =>
-    generalize hs' : s.left.reverse = s'
-    rw [hs'] at ih
-    cases ih with
-    | plus_left ih =>
-      cases ih with
-      | mul h₁ h₂ hs' =>
-        apply Regex.matches'.star
-        exact h₁
-        exact h₂
-        exact hs'
-    | plus_right ih =>
-      cases ih
-      apply Regex.matches'.star_nil
+  rw [accept] at h
+  simp at h
+  exact h.right
 
-theorem uniqueness (r : Regex α) (l₁ l₂ : Loc α) (hl : l₁.word = l₂.word) :
-  Greedy r l₁ ∧ Greedy r l₂ → l₁ = l₂ := by
-  intro ⟨h₁, h₂⟩
-  induction h₁ generalizing l₂ with
-  | one =>
-    cases h₂
-    simp_all
-  | char =>
-    cases h₂
-    simp_all
-  | plus_left r₁ r₂ loc h₁ ih₁ =>
-    cases h₂ with
-    | plus_left =>
-      apply ih₁ at hl
-      simp_all
-    | plus_right _ _ _ hn =>
-      absurd hn
-      apply correctness at h₁
-      use loc.left.reverse
-      use loc.right
-      simp_all
-  | plus_right r₁ r₂ loc hn h ih =>
-    cases h₂ with
-    | plus_left _ _ _ h' =>
-      apply correctness at h'
-      absurd hn
-      use l₂.left.reverse
-      use l₂.right
-      simp_all
-    | plus_right =>
-      apply ih at hl
-      simp_all
-  | mul r₁ r₂ s₁ s₂ s₃ h h' ih ih'  =>
-    cases h₂ with
-    | mul _ _ s₁' s₂' s₃' k k' =>
-      cases r₁ with
-      | zero => cases k
-      | one =>
-        generalize hh : s₁.reverse = t₁
-        generalize hk : s₁'.reverse = t₁'
-        rw [hh] at h
-        rw [hk] at k
-        cases h
-        cases k
-        simp at hh hk
-        simp [hh, hk] at hl
-        have ih' := ih' (s₂'.reverse, s₃')
-        simp [hl] at ih'
-        apply ih' at k'
-        simp_all
-      | char c =>
-        generalize hh : s₁.reverse = t₁
-        generalize hk : s₁'.reverse = t₁'
-        rw [hh] at h
-        rw [hk] at k
-        cases h
-        cases k
-        simp at hh hk
-        simp [hh, hk] at hl
-        have ih' := ih' (s₂'.reverse, s₃')
-        simp [hl] at ih'
-        apply ih' at k'
-        simp_all
-      | plus =>
-        sorry
-      | mul => sorry
-      | star =>
-        sorry
-  | star r s h₁ ih =>
-    cases h₂ with
-    | star _ _ h₂ =>
-      apply ih at hl
-      apply hl at h₂
-      exact h₂
+theorem star_accept (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) (loc : Loc α) :
+  r.star.accept (s₁, s₂) k = some loc →
+  (r.mul (r.star)).accept (s₁, s₂) k = some loc ∨ ((r.mul (r.star)).accept (s₁, s₂) k = none ∧ k (s₁, s₂) = some loc) := by
+  intro h
+  rw [accept] at h
+  simp at h
+  cases h with
+  | inl h =>
+    sorry
+  | inr h =>
+    right
+    refine ⟨?_, h.right⟩
+    sorry

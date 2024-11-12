@@ -150,27 +150,37 @@ theorem prune_highNullable {α : Type u} {r : Regex α} (h : r.highNullable) :
   rw [h, highNullable_nullable h]
   simp
 
-theorem prune_not_nullable {α : Type u} (r : Regex α) (hn : ¬r.nullable) :
+theorem prune_not_nullable {α : Type u} {r : Regex α} (hn : ¬r.nullable) :
   r.prune = r := by
   rw [prune]
   simp at hn
   exact hn
 
-theorem prune_plus_nullable {α : Type u} {r₁ r₂ : Regex α} (h : (r₁.plus r₂).nullable) (hn : ¬(r₁.plus r₂).highNullable) :
-  r₁.nullable ∧ (r₁.plus r₂).prune = r₁.prune ∨ ¬r₁.nullable ∧ (r₁.plus r₂).prune = r₁.prune.plus (r₂.prune) := by
+theorem prune_plus_left_nullable {α : Type u} {r₁ r₂ : Regex α} (hr : r₁.nullable) (hn : ¬r₁.highNullable) :
+  (r₁.plus r₂).prune = r₁.prune := by
   simp_all
-  cases h with
-  | inl h => simp_all
-  | inr h =>
-    by_cases hr : r₁.nullable
-    · simp_all
-    · simp_all
 
-theorem prune_plus_nullable_highNullable {α : Type u} (r₁ r₂ : Regex α) (hn : (r₁.plus r₂).nullable) (hr : r₁.highNullable) :
+theorem prune_plus_right_nullable {α : Type u} {r₁ r₂ : Regex α} (hr₁ : ¬r₁.nullable) (hr₂ : r₂.nullable) (hn : ¬r₁.highNullable) :
+  (r₁.plus r₂).prune = r₁.prune.plus (r₂.prune) := by
+  simp_all
+
+theorem prune_plus_left_highNullable {α : Type u} {r₁ r₂ : Regex α} (hr : r₁.highNullable) :
   (r₁.plus r₂).prune = one := by
+  have hn : (r₁.plus r₂).nullable := by
+    simp
+    exact Or.inl (highNullable_nullable hr)
+
   unfold prune
   rw [hn]
   simp [hr]
+
+theorem prune_star_highNullable {α : Type u} {r : Regex α} (hr : r.highNullable) :
+  r.star.prune = one := by
+  simp_all
+
+theorem prune_star_not_highNullable {α : Type u} {r : Regex α} (hr : ¬r.highNullable) :
+  r.star.prune = r.star := by
+  simp_all
 
 def matchEnd : Regex α → Loc α → Option (Loc α)
   | r, (u, []) =>
