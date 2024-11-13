@@ -137,7 +137,16 @@ def prune (r : Regex α) : Regex α :=
   | mul r₁ r₂, true, false =>
     if r₁.highNullable
       then r₂.prune
-      else mul r₁ r₂
+      else
+        match r₁ with
+        | zero => mul zero r₂
+        | one => mul one r₂
+        | char c => mul (char c) r₂
+        -- | plus r₁₁ r₁₂ => prune (plus (mul r₁₁ r₂) (mul r₁₂ r₂))
+        | plus r₁₁ r₁₂ => mul (plus r₁₁ r₁₂) r₂
+        -- | mul r₁₁ r₁₂ => prune (mul r₁₁ (mul r₁₂ r₂))
+        | mul r₁₁ r₁₂ => mul r₁₁ (mul r₁₂ r₂)
+        | star r => plus (mul (prune r) (mul (star r) r₂)) (prune r₂)
   | plus r₁ r₂, true, false =>
     if r₁.nullable
       then r₁.prune
@@ -181,6 +190,23 @@ theorem prune_star_highNullable {α : Type u} {r : Regex α} (hr : r.highNullabl
 theorem prune_star_not_highNullable {α : Type u} {r : Regex α} (hr : ¬r.highNullable) :
   r.star.prune = r.star := by
   simp_all
+
+theorem prune_mul_left_highNullable {α : Type u} {r₁ r₂ : Regex α} (hr₁ : r₁.highNullable) (hr₂ : r₂.nullable) (hr₂' : ¬r₂.highNullable) :
+  (r₁.mul r₂).prune = r₂.prune := by
+  have hn : (r₁.mul r₂).nullable := by
+    simp
+    exact ⟨highNullable_nullable hr₁, hr₂⟩
+
+  have hn' : (r₁.mul r₂).highNullable = false := by
+    simp
+    intro
+    simp [hr₂']
+
+  generalize h : r₂.prune = x
+  unfold prune
+  rw [hn, hn']
+  simp [hr₁]
+  exact h
 
 def matchEnd : Regex α → Loc α → Option (Loc α)
   | r, (u, []) =>
