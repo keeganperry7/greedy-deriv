@@ -42,3 +42,10 @@ def r6' : Regex Char := (Regex.one.plus (Regex.char 'b')).mul ((Regex.one.plus (
 def r7 : Regex Char := ((Regex.char 'a').plus (Regex.one.plus (Regex.char 'b'))).star
 #eval r7.rmatch "aaaabbb".toList
 #eval r7.gmatch "aaaabbb".toList
+
+-- (ε|a)b
+def r8 : Regex Char := (Regex.one.plus (Regex.char 'a')).mul (Regex.char 'b')
+#eval r8.rmatch "ab".toList
+#eval r8.prune
+#eval r8.prune'
+#eval r8.gmatch "ab".toList

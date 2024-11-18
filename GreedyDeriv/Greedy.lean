@@ -22,7 +22,7 @@ theorem accept_mul_def (r₁ r₂ : Regex α) (loc : Loc α) (k : Loc α → Opt
   (r₁.mul r₂).accept loc k = (r₁.accept loc (fun loc' => r₂.accept loc' k)) := by
   rw [accept]
 
-theorem if_cond (n m : Nat) (x y : Option (Loc α)) :
+theorem if_cond {α : Type u} (n m : Nat) (x y : α) :
   (if n ≤ m then if n ≤ m + 1 then x else y else y) = if n ≤ m then x else y := by
   split_ifs with h₁ h₂
   · rfl
@@ -31,10 +31,26 @@ theorem if_cond (n m : Nat) (x y : Option (Loc α)) :
     exact h₁
   · rfl
 
-theorem accept_suffix' (r : Regex α) (k : Loc α → Option (Loc α)) :
+theorem if_cond' {α : Type u} (x y z : Nat) (a b : α) (h : y < z) :
+  (if x ≤ y then if x < z then a else b else b) = if x ≤ y then a else b := by
+  split_ifs with h₁ h₂
+  · rfl
+  · absurd h₂
+    rw [Nat.le_iff_lt_or_eq] at h₁
+    cases h₁ with
+    | inl h₁ =>
+      apply Nat.lt_trans
+      exact h₁
+      exact h
+    | inr h₂ =>
+      rw [h₂]
+      exact h
+  · rfl
+
+theorem accept_suffix (r : Regex α) (k : Loc α → Option (Loc α)) :
   r.accept (s₁, s₂) k = r.accept (s₁, s₂) (fun l' => if l'.right.length ≤ s₂.length then k l' else none) := by
   induction r generalizing s₁ s₂ k with
-  | zero => simp [accept]
+  | zero => simp only [accept]
   | one => simp [accept]
   | char c =>
     cases s₂ with
@@ -67,8 +83,8 @@ theorem accept_suffix' (r : Regex α) (k : Loc α → Option (Loc α)) :
       simp [accept]
       repeat rw [←accept_mul_def]
       -- Structural induction on r.size
-      -- rw [accept_suffix' (r₁'.mul r₂)]
-      -- rw [accept_suffix' (r₂'.mul r₂)]
+      -- rw [accept_suffix (r₁'.mul r₂)]
+      -- rw [accept_suffix (r₂'.mul r₂)]
       -- simp
       sorry
     | mul r₁' r₂' =>
@@ -76,99 +92,13 @@ theorem accept_suffix' (r : Regex α) (k : Loc α → Option (Loc α)) :
       simp_rw [←accept_mul_def r₂' r₂]
       repeat rw [←accept_mul_def]
       -- Structural induction on r.left.size
-      -- rw [accept_suffix' (r₁'.mul (r₂'.mul r₂))]
+      -- rw [accept_suffix (r₁'.mul (r₂'.mul r₂))]
       -- simp
       sorry
     | star r => sorry
   | star r ih =>
-    rw [accept]
-    rw [accept]
-    simp
-
-
-
+    -- True because of the restrictions on s₂
     sorry
-
-theorem accept_not_nullable' (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) (v : Option (Loc α)) (hn : ¬r.nullable) :
-  r.accept (s₁, s₂) k = v → r.accept (s₁, s₂) (fun l' => if l'.right.length < s₂.length then k l' else none) = v := by
-  induction r generalizing s₁ s₂ k with
-  | zero => simp [accept]
-  | one => simp at hn
-  | char c =>
-    cases s₂ with
-    | nil => simp [accept]
-    | cons x xs => simp [accept]
-  | plus r₁ r₂ ih₁ ih₂ =>
-    simp at hn ih₁ ih₂
-    simp [accept]
-    generalize hr₁ : (r₁.accept (s₁, s₂)) k = r₁'
-    generalize hr₂ : (r₂.accept (s₁, s₂)) k = r₂'
-    intro h
-    cases r₁' with
-    | none =>
-      cases r₂' with
-      | none =>
-        simp at h
-        rw [h] at hr₁
-        rw [h] at hr₂
-        apply ih₁ at hr₁
-        apply ih₂ at hr₂
-        rw [hr₁, hr₂]
-        simp
-        exact hn.right
-        exact hn.left
-      | some =>
-        simp at h
-        rw [h] at hr₂
-        apply ih₂ at hr₂
-        rw [hr₂]
-        sorry
-        exact hn.right
-    | some =>
-      simp at h
-      rw [h] at hr₁
-      apply ih₁ at hr₁
-      rw [hr₁, ←h]
-      simp
-      exact hn.left
-  | mul r₁ r₂ ih₁ ih₂ =>
-    simp [accept]
-    intro h
-    cases r₁ with
-    | zero =>
-      simp [accept]
-      simp [accept] at h
-      exact h
-    | one =>
-      simp at hn
-      simp [accept]
-      simp [accept] at h
-      apply ih₂ at h
-      exact h
-      simp [hn]
-    | char c =>
-      cases s₂ with
-      | nil =>
-        simp [accept]
-        simp [accept] at h
-        exact h
-      | cons x xs =>
-        simp [accept]
-        simp [accept] at h
-        split_ifs at h with hc
-        · simp [hc]
-          rw [accept_suffix']
-          simp
-          simp_rw [Nat.lt_succ]
-          simp_all
-          rw [accept_suffix'] at h
-          exact h
-        · simp [hc]
-          exact h
-    | plus => sorry
-    | mul => sorry
-    | star => sorry
-  | star => simp at hn
 
 theorem accept_not_nullable (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) (hn : ¬r.nullable) :
   r.accept (s₁, s₂) k = r.accept (s₁, s₂) (fun l' => if l'.right.length < s₂.length then k l' else none) := by
@@ -199,7 +129,7 @@ theorem accept_not_nullable (r : Regex α) (s₁ s₂ : List α) (k : Loc α →
         simp [accept]
         split_ifs with hc
         · simp_rw [Nat.lt_succ]
-          rw [accept_suffix']
+          rw [accept_suffix]
           simp
         · rfl
     | plus r₁₁ r₁₂ =>
@@ -212,7 +142,9 @@ theorem accept_not_nullable (r : Regex α) (s₁ s₂ : List α) (k : Loc α →
       -- True by structural induction over r.left.size, since (r₁₁.mul (r₁₂.mul r₂)).size < ((r₁₁.mul r₁₂).mul r₂).size
       -- Also have that (r₁₁.mul (r₁₂.mul r₂)).nullable
       sorry
-    | star => sorry
+    | star r =>
+      -- True because of the restrictions on s₂
+      sorry
   | star => simp at hn
 
 theorem accept_nil_none (r : Regex α) (s : List α) (k : Loc α → Option (Loc α)) :
@@ -320,6 +252,11 @@ theorem accept_deriv_some (r : Regex α) (s₁ s₂ : List α) (k : Loc α → O
   | mul => sorry
   | star => sorry
 
+theorem accept_deriv_none' {r : Regex α} {s₁ s₂ : List α} {k : Loc α → Option (Loc α)} (hn : ¬r.nullable) :
+  (r.prune'.deriv x).accept (x::s₁, s₂) k = none →
+  r.accept (s₁, x::s₂) k = none := by
+  sorry
+
 theorem accept_deriv_none (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) :
   ¬r.nullable ∧ (r.prune.deriv x).accept (x::s₁, s₂) k = none →
   r.accept (s₁, x::s₂) k = none := by
@@ -348,6 +285,106 @@ theorem accept_deriv_none (r : Regex α) (s₁ s₂ : List α) (k : Loc α → O
     simp [hn.left]
   | mul => sorry
   | star => simp at hn
+
+theorem accept_deriv' (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) (loc : Loc α) :
+  (r.prune'.deriv x).accept (x::s₁, s₂) k = some loc →
+  r.accept (s₁, x::s₂) k = some loc := by
+  intro h
+  induction r generalizing k with
+  | zero => simp [accept] at *
+  | one => simp [accept] at *
+  | char c =>
+    simp [accept] at *
+    split_ifs at h with hc
+    · simp [hc]
+      simp [accept] at h
+      exact h
+    · simp [accept] at h
+  | plus r₁ r₂ ih₁ ih₂ =>
+    simp [accept]
+    rw [prune'] at h
+    split_ifs at h with hn hn'
+    · simp [accept] at h
+    · apply ih₁ at h
+      exact Or.inl h
+    · simp [Regex.deriv, accept] at h
+      cases h with
+      | inl h =>
+        apply ih₁ at h
+        exact Or.inl h
+      | inr h =>
+        let ⟨h₁, h₂⟩ := h
+        apply ih₂ at h₂
+        refine Or.inr ⟨?_, h₂⟩
+        apply accept_deriv_none'
+        exact hn'
+        exact h₁
+  | mul r₁ r₂ ih₁ ih₂ =>
+    rw [Regex.prune'.eq_def] at h
+    simp at h
+    split_ifs at h with hn
+    · simp [accept] at h
+    · cases r₁ with
+      | zero =>
+        simp [accept] at h
+      | one =>
+        simp at h
+        apply ih₂ at h
+        simp [accept]
+        exact h
+      | char c =>
+        simp at h
+        split_ifs at h with hc
+        · simp [accept] at h
+          simp [accept, hc]
+          -- TODO: Show r.accept l k = r.prune'.accept l k
+          sorry
+        · simp [accept] at h
+      | plus r₁₁ r₁₂ =>
+        simp at h
+        split_ifs at h with hn hn'
+        · simp [accept] at h
+        · simp [accept]
+          -- True, by structural induction, since r₁₁.mul r₂ < (r₁₁.plus r₁₂).mul r₂
+          -- apply accept_deriv' at h
+          -- simp [accept] at h
+          -- exact Or.inl h
+          sorry
+        · simp [Regex.deriv] at h
+          simp [accept] at h
+          cases h with
+          | inl h =>
+            simp [accept]
+            -- Again, true by structural induction, since r₁₁.mul r₂ < (r₁₁.plus r₁₂).mul r₂
+            -- apply accept_deriv' at h
+            -- simp [accept] at h
+            -- exact Or.inl h
+            sorry
+          | inr h =>
+            let ⟨h₁, h₂⟩ := h
+            simp [accept]
+            -- True, by structural induction, since r₁₂.mul r₂ < (r₁₁.plus r₁₂).mul r₂
+            -- Also have that (r₁₁.mul r₂).accept l k = none by h₁
+            -- apply accept_deriv' at h₁
+            -- simp [accept] at h₁
+            refine Or.inr ⟨?_, ?_⟩
+            · have h := accept_deriv_none' (by simp [hn']) h₁
+              simp [accept] at h
+              exact h
+            · -- exact h₁
+              sorry
+      | mul r₁₁ r₁₂ =>
+        simp at h
+        simp [accept]
+        -- True, by structural induction, since r₁₁.mul (r₁₂.mul r₂) < (r₁₁.mul r₁₂).mul r₂
+        -- apply accept_deriv' at h
+        -- simp [accept] at h
+        -- exact h
+        sorry
+      | star => sorry
+  | star r ih =>
+    simp at h
+    sorry
 
 -- Maybe need to induct over r and s₂
 theorem accept_deriv (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) (loc : Loc α) :
@@ -431,9 +468,9 @@ theorem accept_deriv (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option
         -- True since ¬r.nullable, but also true in general
         -- i.e. (r.mul r.star).accept (s₁, s₂) k = some loc → r.star.accept (s₁, s₂) k = some loc
         -- difficulty is showing when r captures some input, since then the condition is satisfied
-        apply accept_not_nullable'
-        exact hr'
+        rw [accept_not_nullable] at h
         exact h
+        exact hr'
 
 theorem zero_accept (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) :
   zero.accept (s₁, s₂) k = none := by
