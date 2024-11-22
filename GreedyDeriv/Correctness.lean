@@ -22,7 +22,8 @@ theorem matchEnd_accept_none (r : Regex α) (s₁ s₂ : List α) :
       apply ih at k
       apply accept_deriv_none
       simp
-      exact ⟨h, k⟩
+      exact h
+      exact k
     | some =>
       rw [k] at h
       simp at h

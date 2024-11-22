@@ -94,7 +94,7 @@ def highNullable : Regex α → Bool
   | char _ => false
   | plus r₁ _ => r₁.highNullable
   | mul r₁ r₂ => r₁.highNullable && r₂.highNullable
-  | star r => false
+  | star r => r.highNullable
 
 theorem highNullable_nullable {α : Type u} {r : Regex α} :
   r.highNullable → r.nullable := by
@@ -138,8 +138,8 @@ def left : Regex α → Regex α
   | mul r₁ _ => r₁
   | star r => star r
 
-@[simp]
-def prune' : Regex α → Regex α
+ @[simp]
+def prune : Regex α → Regex α
   | zero => zero
   | one => one
   | char c => char c
@@ -147,24 +147,27 @@ def prune' : Regex α → Regex α
     if r₁.highNullable
       then one
     else if r₁.nullable
-      then r₁.prune'
-      else plus r₁.prune' r₂.prune'
+      then r₁.prune
+      else plus r₁.prune r₂.prune
   | mul r₁ r₂ =>
     if r₁.highNullable ∧ r₂.highNullable
       then one
       else match r₁ with
         | zero => zero
-        | one => r₂.prune'
-        | char c => mul (char c) r₂.prune'
+        | one => r₂.prune
+        | char c => mul (char c) r₂
         | plus r₁₁ r₁₂ =>
           if (r₁₁.mul r₂).highNullable
             then one
             else if (r₁₁.mul r₂).nullable
-              then (r₁₁.mul r₂).prune'
-              else plus (r₁₁.mul r₂).prune' (r₁₂.mul r₂).prune'
-        | mul r₁₁ r₁₂ => (mul r₁₁ (r₁₂.mul r₂)).prune' -- TODO: Call prune on mul r₁₁ (r₁₂.mul r₂)
-        | star r => mul r.star r₂
-  | star r => star r
+              then (r₁₁.mul r₂).prune
+              else plus (r₁₁.mul r₂).prune (r₁₂.mul r₂).prune
+        | mul r₁₁ r₁₂ => (mul r₁₁ (r₁₂.mul r₂)).prune
+        | star r => mul r.star r₂ -- TODO: Come up with prune definition
+  | star r =>
+    if r.highNullable
+      then one
+      else star r.prune
 termination_by r => (r.size, r.left.size)
 decreasing_by
   · decreasing_tactic
@@ -174,89 +177,26 @@ decreasing_by
   · decreasing_tactic
   · decreasing_tactic
   · decreasing_tactic
-  · decreasing_tactic
   · simp only [size, left]
     omega
+  · decreasing_tactic
 
-@[simp]
-def prune (r : Regex α) : Regex α :=
-  match r, r.nullable, r.highNullable with
-  | r, false, _ => r
-  | _, true, true => one
-  | mul r₁ r₂, true, false =>
-    if r₁.highNullable
-      then r₂.prune
-      else
-        match r₁ with
-        | zero => mul zero r₂
-        | one => mul one r₂
-        | char c => mul (char c) r₂
-        -- | plus r₁₁ r₁₂ => prune (plus (mul r₁₁ r₂) (mul r₁₂ r₂))
-        | plus r₁₁ r₁₂ => mul (plus r₁₁ r₁₂) r₂
-        -- | mul r₁₁ r₁₂ => prune (mul r₁₁ (mul r₁₂ r₂))
-        | mul r₁₁ r₁₂ => mul r₁₁ (mul r₁₂ r₂)
-        | star r => plus (mul (prune r) (mul (star r) r₂)) (prune r₂)
-  | plus r₁ r₂, true, false =>
-    if r₁.nullable
-      then r₁.prune
-      else plus r₁ (r₂.prune)
-  | r, true, false => r
-
-theorem prune_highNullable {α : Type u} {r : Regex α} (h : r.highNullable) :
+theorem prune_highNullable {α : Type u} {r : Regex α} (hn : r.highNullable) :
   r.prune = one := by
-  unfold prune
-  rw [h, highNullable_nullable h]
-  simp
-
-theorem prune_not_nullable {α : Type u} {r : Regex α} (hn : ¬r.nullable) :
-  r.prune = r := by
-  rw [prune]
-  simp at hn
-  exact hn
-
-theorem prune_plus_left_nullable {α : Type u} {r₁ r₂ : Regex α} (hr : r₁.nullable) (hn : ¬r₁.highNullable) :
-  (r₁.plus r₂).prune = r₁.prune := by
-  simp_all
-
-theorem prune_plus_right_nullable {α : Type u} {r₁ r₂ : Regex α} (hr₁ : ¬r₁.nullable) (hr₂ : r₂.nullable) (hn : ¬r₁.highNullable) :
-  (r₁.plus r₂).prune = r₁.prune.plus (r₂.prune) := by
-  simp_all
-
-theorem prune_plus_left_highNullable {α : Type u} {r₁ r₂ : Regex α} (hr : r₁.highNullable) :
-  (r₁.plus r₂).prune = one := by
-  have hn : (r₁.plus r₂).nullable := by
-    simp
-    exact Or.inl (highNullable_nullable hr)
-
-  unfold prune
-  rw [hn]
-  simp [hr]
-
-theorem prune_star_highNullable {α : Type u} {r : Regex α} (hr : r.highNullable) :
-  r.star.prune = one := by
-  sorry
-  -- simp_all
-
-theorem prune_star_not_highNullable {α : Type u} {r : Regex α} (hr : ¬r.highNullable) :
-  r.star.prune = r.star := by
-  simp_all
-
-theorem prune_mul_left_highNullable {α : Type u} {r₁ r₂ : Regex α} (hr₁ : r₁.highNullable) (hr₂ : r₂.nullable) (hr₂' : ¬r₂.highNullable) :
-  (r₁.mul r₂).prune = r₂.prune := by
-  have hn : (r₁.mul r₂).nullable := by
-    simp
-    exact ⟨highNullable_nullable hr₁, hr₂⟩
-
-  have hn' : (r₁.mul r₂).highNullable = false := by
-    simp
-    intro
-    simp [hr₂']
-
-  generalize h : r₂.prune = x
-  unfold prune
-  rw [hn, hn']
-  simp [hr₁]
-  exact h
+  induction r with
+  | zero => simp at hn
+  | one => simp
+  | char => simp at hn
+  | plus r₁ r₂ =>
+    simp at hn
+    simp [prune, hn]
+  | mul r₁ r₂ =>
+    simp at hn
+    rw [prune.eq_def]
+    simp [hn]
+  | star r =>
+    simp at hn
+    simp [prune, hn]
 
 def matchEnd : Regex α → Loc α → Option (Loc α)
   | r, (u, []) =>
