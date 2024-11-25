@@ -198,6 +198,10 @@ theorem prune_highNullable {α : Type u} {r : Regex α} (hn : r.highNullable) :
     simp at hn
     simp [prune, hn]
 
+theorem prune_star_not_highNullable {α : Type u} {r : Regex α} (hn : ¬r.highNullable) :
+  r.star.prune = r.prune.star := by
+  simp [prune, hn]
+
 def matchEnd : Regex α → Loc α → Option (Loc α)
   | r, (u, []) =>
     if r.nullable
