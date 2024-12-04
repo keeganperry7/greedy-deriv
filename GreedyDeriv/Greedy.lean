@@ -74,25 +74,7 @@ theorem if_cond'' {α : Type u} (loc' : Loc α) (s₂ : List α) (k : Loc α →
       exact h
   · rfl
 
-theorem if_cond''' {α : Type u} (y z : Nat) (a b : Option (Loc α)) (h : y < z) :
-  (fun l' : Loc α ↦ if l'.2.length ≤ y then a else b) =
-  (fun l' ↦ if l'.2.length ≤ y then if l'.2.length < z then a else b else b) := by
-  ext x t
-  split_ifs with h₁ h₂
-  · rfl
-  · absurd h₂
-    rw [Nat.le_iff_lt_or_eq] at h₁
-    cases h₁ with
-    | inl h₁ =>
-      apply Nat.lt_trans
-      exact h₁
-      exact h
-    | inr h₁ =>
-      rw [h₁]
-      exact h
-  · rfl
-
-theorem accept_suffix' (r : Regex α) (k : Loc α → Option (Loc α)) (x : Option (Loc α)) :
+theorem accept_suffix (r : Regex α) (k : Loc α → Option (Loc α)) (x : Option (Loc α)) :
   r.accept (s₁, s₂) k = r.accept (s₁, s₂) (fun l' => if l'.right.length ≤ s₂.length then k l' else x) :=
   match r with
   | zero => by
@@ -105,14 +87,14 @@ theorem accept_suffix' (r : Regex α) (k : Loc α → Option (Loc α)) (x : Opti
     | cons x xs => simp [accept]
   | plus r₁ r₂ => by
     simp [accept]
-    rw [accept_suffix' r₁, accept_suffix' r₂]
+    rw [accept_suffix r₁, accept_suffix r₂]
     rfl
   | mul r₁ r₂ => by
     match r₁ with
     | zero => simp [accept]
     | one =>
       simp [accept]
-      rw [accept_suffix' r₂ _ x]
+      rw [accept_suffix r₂ _ x]
       rfl
     | char c =>
       cases s₂ with
@@ -120,100 +102,157 @@ theorem accept_suffix' (r : Regex α) (k : Loc α → Option (Loc α)) (x : Opti
       | cons y ys =>
         simp [accept]
         split_ifs with hc
-        · rw [accept_suffix' r₂ _ x]
-          nth_rw 2 [accept_suffix' r₂ _ x]
+        · rw [accept_suffix r₂ _ x]
+          nth_rw 2 [accept_suffix r₂ _ x]
           simp
           simp_rw [if_cond _ ys.length _ x]
         · rfl
     | plus r₁₁ r₁₂ =>
       simp [accept]
       repeat rw [←accept_mul_def]
-      rw [accept_suffix' (r₁₁.mul r₂) _ x]
-      rw [accept_suffix' (r₁₂.mul r₂) _ x]
+      rw [accept_suffix (r₁₁.mul r₂) _ x]
+      rw [accept_suffix (r₁₂.mul r₂) _ x]
       rfl
     | mul r₁₁ r₁₂ =>
       simp [accept]
       simp_rw [←accept_mul_def r₁₂ r₂]
       repeat rw [←accept_mul_def]
-      rw [accept_suffix' (r₁₁.mul (r₁₂.mul r₂)) _ x]
+      rw [accept_suffix (r₁₁.mul (r₁₂.mul r₂)) _ x]
       rfl
     | .star r =>
       rw [accept, accept, accept, accept]
       simp
-      rw [accept_suffix' r₂ _ x]
+      rw [accept_suffix r₂ _ x]
       simp
+
       generalize hr₂ : (r₂.accept (s₁, s₂) fun l' ↦ if l'.2.length ≤ s₂.length then k l' else x) = r₂'
 
       have tmp :
-        (fun l ↦
-          if l.2.length < s₂.length then
-            r.star.accept l fun l₁ ↦
+        (fun loc' ↦
+          if loc'.2.length < s₂.length then
+            r.star.accept loc' fun l₁ ↦ r₂.accept l₁ fun l₂ ↦
+              if l₂.2.length ≤ s₂.length then
+                k l₂
+              else x
+          else r₂') =
+        (fun loc' ↦
+          if loc'.2.length < s₂.length then
+            r.star.accept loc' fun l₁ ↦
+            if l₁.2.length ≤ loc'.2.length then
               r₂.accept l₁ fun l₂ ↦
                 if l₂.2.length ≤ s₂.length then
                   k l₂
                 else x
-          else r₂') =
-        (fun l ↦
-          if l.2.length < s₂.length then
-            r.star.accept l fun l₁ ↦
-              if l₁.2.length ≤ l.2.length then
-                r₂.accept l₁ fun l₂ ↦
-                  if l₂.2.length ≤ s₂.length then
-                    k l₂
-                  else x
               else x
           else r₂') := by
-        ext l t
+        ext loc' t
         split_ifs with hl
-        · rw [accept_suffix' r.star _ x]
+        · rw [accept_suffix r.star _ x]
           rfl
         · rfl
 
       have tmp₂ :
-        (fun l ↦
-          if l.2.length < s₂.length then
-            r.star.accept l fun l₁ ↦
-              if l₁.2.length ≤ l.2.length then
+        (fun loc' ↦
+          if loc'.2.length < s₂.length then
+            r.star.accept loc' fun l₁ ↦
+            if l₁.2.length ≤ loc'.2.length then
+              r₂.accept l₁ fun l₂ ↦
+                if l₂.2.length ≤ s₂.length then
+                  k l₂
+                else x
+              else x
+          else r₂') =
+        (fun loc' ↦
+          if loc'.2.length < s₂.length then
+            r.star.accept loc' fun l₁ ↦
+            if l₁.2.length ≤ loc'.2.length then
+              if l₁.2.length < s₂.length then
+                r₂.accept l₁ fun l₂ ↦
+                  if l₂.2.length ≤ s₂.length then
+                    k l₂
+                  else x
+                else x
+              else x
+          else r₂') := by
+        ext loc' t
+        split_ifs with hl
+        have tmp₂₁ :
+          (fun l₁ ↦
+            if l₁.2.length ≤ loc'.2.length then
+              r₂.accept l₁ fun l₂ ↦
+                if l₂.2.length ≤ s₂.length then
+                  k l₂
+                else x
+            else x) =
+          (fun l₁ ↦
+            if l₁.2.length ≤ loc'.2.length then
+              if l₁.2.length < s₂.length then
                 r₂.accept l₁ fun l₂ ↦
                   if l₂.2.length ≤ s₂.length then
                     k l₂
                   else x
               else x
+            else x) := by
+
+          ext l₁ t₁
+          split_ifs with h₁ h₂
+          · rfl
+          · absurd h₂
+            rw [Nat.le_iff_lt_or_eq] at h₁
+            cases h₁ with
+            | inl h₁ =>
+              apply Nat.lt_trans
+              exact h₁
+              exact hl
+            | inr h₁ =>
+              rw [h₁]
+              exact hl
+          · rfl
+        rw [tmp₂₁]
+        rfl
+
+      have tmp₃ :
+        (fun loc' ↦
+          if loc'.2.length < s₂.length then
+            r.star.accept loc' fun l₁ ↦
+            if l₁.2.length ≤ loc'.2.length then
+              if l₁.2.length < s₂.length then
+                r₂.accept l₁ fun l₂ ↦
+                  if l₂.2.length ≤ s₂.length then
+                    k l₂
+                  else x
+                else x
+              else x
           else r₂') =
-        (fun l ↦
-          if l.2.length < s₂.length then
-            r.star.accept l fun l₁ ↦
-              if l₁.2.length ≤ l.2.length then
-                if l₁.2.length < s₂.length then
-                  r₂.accept l₁ fun l₂ ↦
+        (fun loc' ↦
+          if loc'.2.length < s₂.length then
+            r.star.accept loc' fun l₁ ↦
+            if l₁.2.length ≤ loc'.2.length then
+              if l₁.2.length < s₂.length then
+                r₂.accept l₁ fun l₂ ↦
+                  if l₂.2.length ≤ l₁.2.length then
                     if l₂.2.length ≤ s₂.length then
                       k l₂
                     else x
+                  else x
                 else x
               else x
           else r₂') := by
-        ext l t
+        ext loc' t
         split_ifs with hl
-        · sorry
-        · rfl
-
-      have tmp₃ :
-        (fun l ↦
-          if l.2.length < s₂.length then
-            r.star.accept l fun l₁ ↦
-              if l₁.2.length ≤ l.2.length then
+        ·
+          have tmp₃₁ :
+            (fun l₁ ↦
+              if l₁.2.length ≤ loc'.2.length then
                 if l₁.2.length < s₂.length then
                   r₂.accept l₁ fun l₂ ↦
                     if l₂.2.length ≤ s₂.length then
                       k l₂
                     else x
                 else x
-              else x
-          else r₂') =
-        (fun l ↦
-          if l.2.length < s₂.length then
-            r.star.accept l fun l₁ ↦
-              if l₁.2.length ≤ l.2.length then
+              else x) =
+            (fun l₁ ↦
+              if l₁.2.length ≤ loc'.2.length then
                 if l₁.2.length < s₂.length then
                   r₂.accept l₁ fun l₂ ↦
                     if l₂.2.length ≤ l₁.2.length then
@@ -222,43 +261,221 @@ theorem accept_suffix' (r : Regex α) (k : Loc α → Option (Loc α)) (x : Opti
                       else x
                     else x
                 else x
-              else x
-          else r₂') := by
-        ext l t
-        split_ifs with hl
-        · sorry
+              else x)  := by
+            ext l₁ u
+            split_ifs with h₁ h₂
+            · rw [accept_suffix r₂ _ x]
+              rfl
+            · rfl
+            · rfl
+          rw [tmp₃₁]
         · rfl
 
       have tmp₄ :
-        (fun l ↦
-          if l.2.length < s₂.length then
-            r.star.accept l fun l₁ ↦
-              if l₁.2.length ≤ l.2.length then
-                if l₁.2.length < s₂.length then
-                  r₂.accept l₁ fun l₂ ↦
-                    if l₂.2.length ≤ l₁.2.length then
-                      if l₂.2.length ≤ s₂.length then
-                        k l₂
-                      else x
+        (fun loc' ↦
+          if loc'.2.length < s₂.length then
+            r.star.accept loc' fun l₁ ↦
+            if l₁.2.length ≤ loc'.2.length then
+              if l₁.2.length < s₂.length then
+                r₂.accept l₁ fun l₂ ↦
+                  if l₂.2.length ≤ l₁.2.length then
+                    if l₂.2.length ≤ s₂.length then
+                      k l₂
                     else x
+                  else x
                 else x
               else x
           else r₂') =
-        (fun l ↦
-          if l.2.length < s₂.length then
-            r.star.accept l fun l₁ ↦
-              if l₁.2.length ≤ l.2.length then
+        (fun loc' ↦
+          if loc'.2.length < s₂.length then
+            r.star.accept loc' fun l₁ ↦
+            if l₁.2.length ≤ loc'.2.length then
+              if l₁.2.length < s₂.length then
                 r₂.accept l₁ fun l₂ ↦
                   if l₂.2.length ≤ l₁.2.length then
                     k l₂
                   else x
+                else x
               else x
           else r₂') := by
-        sorry
 
-      rw [tmp, tmp₂, tmp₃, tmp₄]
+        ext loc' t
+        split_ifs with hl
+        ·
+          have tmp₄₁ :
+            (fun l₁ ↦
+              if l₁.2.length ≤ loc'.2.length then
+                if l₁.2.length < s₂.length then
+                  r₂.accept l₁ fun l₂ ↦
+                    if l₂.2.length ≤ l₁.2.length then
+                      if l₂.2.length ≤ s₂.length then
+                        k l₂
+                      else x
+                    else x
+                  else x
+                else x) =
+            (fun l₁ ↦
+              if l₁.2.length ≤ loc'.2.length then
+                if l₁.2.length < s₂.length then
+                  r₂.accept l₁ fun l₂ ↦
+                    if l₂.2.length ≤ l₁.2.length then
+                      k l₂
+                    else x
+                  else x
+                else x) := by
+            ext l₁ u
+            split_ifs with h₁ h₂
+            ·
+              have tmp₄₂ :
+                (fun l₂ ↦
+                  if l₂.2.length ≤ l₁.2.length then
+                    if l₂.2.length ≤ s₂.length then
+                      k l₂
+                    else x
+                  else x) =
+                (fun l₂ ↦
+                  if l₂.2.length ≤ l₁.2.length then
+                    k l₂
+                  else x) := by
+                ext l₂ v
+                split_ifs with h₃ h₄
+                · rfl
+                · absurd h₄
+                  apply Nat.le_trans
+                  exact h₃
+                  apply Nat.le_of_lt
+                  exact h₂
+                · rfl
+              rw [tmp₄₂]
+            · rfl
+            · rfl
+          rw [tmp₄₁]
+        · rfl
 
-      sorry
+      have tmp₅ :
+        (fun loc' ↦
+          if loc'.2.length < s₂.length then
+            r.star.accept loc' fun l₁ ↦
+            if l₁.2.length ≤ loc'.2.length then
+              if l₁.2.length < s₂.length then
+                r₂.accept l₁ fun l₂ ↦
+                  if l₂.2.length ≤ l₁.2.length then
+                    k l₂
+                  else x
+                else x
+              else x
+          else r₂') =
+        (fun loc' ↦
+          if loc'.2.length < s₂.length then
+            r.star.accept loc' fun l₁ ↦
+            if l₁.2.length ≤ loc'.2.length then
+              if l₁.2.length < s₂.length then
+                r₂.accept l₁ fun l₂ ↦
+                  k l₂
+              else x
+            else x
+          else r₂') := by
+        ext loc' t
+        split_ifs with hl
+        ·
+          have tmp₅₁ :
+            (fun l₁ ↦
+              if l₁.2.length ≤ loc'.2.length then
+                if l₁.2.length < s₂.length then
+                  r₂.accept l₁ fun l₂ ↦
+                    if l₂.2.length ≤ l₁.2.length then
+                      k l₂
+                    else x
+                else x
+              else x) =
+            (fun l₁ ↦
+              if l₁.2.length ≤ loc'.2.length then
+                if l₁.2.length < s₂.length then
+                  r₂.accept l₁ fun l₂ ↦
+                    k l₂
+                else x
+              else x) := by
+            ext l₁ u
+            split_ifs with h₁ h₂
+            · nth_rw 2 [accept_suffix r₂ _ x]
+              rfl
+            · rfl
+            · rfl
+
+          rw [tmp₅₁]
+        · rfl
+
+      have tmp₆ :
+        (fun loc' ↦
+          if loc'.2.length < s₂.length then
+            r.star.accept loc' fun l₁ ↦
+            if l₁.2.length ≤ loc'.2.length then
+              if l₁.2.length < s₂.length then
+                r₂.accept l₁ fun l₂ ↦
+                  k l₂
+              else x
+            else x
+          else r₂') =
+        (fun loc' ↦
+          if loc'.2.length < s₂.length then
+            r.star.accept loc' fun l₁ ↦
+            if l₁.2.length ≤ loc'.2.length then
+              r₂.accept l₁ fun l₂ ↦
+                k l₂
+            else x
+          else r₂') := by
+        ext loc' t
+        split_ifs with hl
+        ·
+          have tmp₆₁ :
+            (fun l₁ ↦
+              if l₁.2.length ≤ loc'.2.length then
+                if l₁.2.length < s₂.length then
+                  r₂.accept l₁ fun l₂ ↦ k l₂
+                else x
+              else x) =
+            (fun l₁ ↦
+              if l₁.2.length ≤ loc'.2.length then
+                r₂.accept l₁ fun l₂ ↦ k l₂
+              else x) := by
+            ext l₁ u
+            split_ifs with h₁ h₂
+            · rfl
+            · absurd h₂
+              rw [Nat.le_iff_lt_or_eq] at h₁
+              cases h₁ with
+              | inl h₁ =>
+                apply Nat.lt_trans
+                exact h₁
+                exact hl
+              | inr h₁ =>
+                rw [h₁]
+                exact hl
+            · rfl
+          rw [tmp₆₁]
+        · rfl
+
+      have tmp₇ :
+        (fun loc' ↦
+          if loc'.2.length < s₂.length then
+            r.star.accept loc' fun l₁ ↦
+            if l₁.2.length ≤ loc'.2.length then
+              r₂.accept l₁ fun l₂ ↦
+                k l₂
+            else x
+          else r₂') =
+        (fun loc' ↦
+          if loc'.2.length < s₂.length then
+            r.star.accept loc' fun l₁ ↦
+              r₂.accept l₁ fun l₂ ↦ k l₂
+          else r₂') := by
+        ext loc' t
+        split_ifs with hl
+        · nth_rw 2 [accept_suffix r.star _ x]
+          rfl
+        · rfl
+
+      rw [tmp, tmp₂, tmp₃, tmp₄, tmp₅, tmp₆, tmp₇]
   | .star r => by
     rw [accept, accept]
     simp
@@ -282,7 +499,7 @@ theorem accept_suffix' (r : Regex α) (k : Loc α → Option (Loc α)) (x : Opti
         else k (s₁, s₂)) := by
       ext loc' t
       split_ifs with hl
-      · rw [accept_suffix' r.star _ x]
+      · rw [accept_suffix r.star _ x]
         simp
       · rfl
 
@@ -324,7 +541,7 @@ theorem accept_suffix' (r : Regex α) (k : Loc α → Option (Loc α)) (x : Opti
         else k (s₁, s₂)) := by
       ext loc' t
       split_ifs with hl
-      · rw [accept_suffix' r.star _ x]
+      · rw [accept_suffix r.star _ x]
         rfl
       · rfl
 
@@ -345,59 +562,9 @@ decreasing_by
   · decreasing_tactic
   · decreasing_tactic
   · decreasing_tactic
-
-theorem accept_suffix (r : Regex α) (k : Loc α → Option (Loc α)) :
-  r.accept (s₁, s₂) k = r.accept (s₁, s₂) (fun l' => if l'.right.length ≤ s₂.length then k l' else none) := by
-  induction r generalizing s₁ s₂ k with
-  | zero => simp only [accept]
-  | one => simp [accept]
-  | char c =>
-    cases s₂ with
-    | nil => simp [accept]
-    | cons x xs => simp [accept]
-  | plus r₁ r₂ ih₁ ih₂ =>
-    simp [accept]
-    rw [ih₁, ih₂]
-    rfl
-  | mul r₁ r₂ ih₁ ih₂ =>
-    cases r₁ with
-    | zero => simp [accept]
-    | one =>
-      simp [accept]
-      rw [ih₂]
-      rfl
-    | char c =>
-      simp [accept]
-      cases s₂ with
-      | nil => simp [accept]
-      | cons x xs =>
-        simp [accept]
-        split_ifs with hc
-        · rw [ih₂]
-          nth_rw 2 [ih₂]
-          simp
-          simp_rw [if_cond _ xs.length _ none]
-        · rfl
-    | plus r₁' r₂' =>
-      simp [accept]
-      repeat rw [←accept_mul_def]
-      -- Structural induction on r.size
-      -- rw [accept_suffix (r₁'.mul r₂)]
-      -- rw [accept_suffix (r₂'.mul r₂)]
-      -- simp
-      sorry
-    | mul r₁' r₂' =>
-      simp [accept]
-      simp_rw [←accept_mul_def r₂' r₂]
-      repeat rw [←accept_mul_def]
-      -- Structural induction on r.left.size
-      -- rw [accept_suffix (r₁'.mul (r₂'.mul r₂))]
-      -- simp
-      sorry
-    | star r => sorry
-  | star r ih =>
-    -- True because of the restrictions on s₂
-    sorry
+  · decreasing_tactic
+  · decreasing_tactic
+  · decreasing_tactic
 
 theorem accept_highNullable {r : Regex α} {s₁ s₂ : List α} {k : Loc α → Option (Loc α)} (loc : Loc α) (hn : r.highNullable) :
   k (s₁, s₂) = some loc →
@@ -586,7 +753,7 @@ theorem accept_star_null (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Op
       else k (s₁, s₂)) := by
     ext loc' t
     split_ifs with hl
-    · rw [accept_suffix' r.star _ none]
+    · rw [accept_suffix r.star _ none]
       simp
 
       have tmp₁ :
@@ -616,7 +783,7 @@ theorem accept_star_null (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Op
         · rfl
 
       rw [tmp₁]
-      nth_rw 2 [accept_suffix' r.star _ none]
+      nth_rw 2 [accept_suffix r.star _ none]
       simp
     · rfl
 
@@ -702,7 +869,7 @@ theorem accept_nullable'' (r : Regex α) (s₁ s₂ : List α) (k : Loc α → O
         simp [accept]
         split_ifs with hc
         · simp_rw [Nat.lt_succ]
-          rw [accept_suffix' r₂ _ (k (s₁, x::xs))]
+          rw [accept_suffix r₂ _ (k (s₁, x::xs))]
           rfl
         · simp [accept]
     | plus r₁₁ r₁₂ =>
@@ -734,7 +901,7 @@ theorem accept_nullable'' (r : Regex α) (s₁ s₂ : List α) (k : Loc α → O
         else k (s₁, s₂)) := by
       ext loc' t
       split_ifs with hl
-      · rw [accept_suffix' r.star _ none]
+      · rw [accept_suffix r.star _ none]
         simp
 
         have tmp₁ :
@@ -764,7 +931,7 @@ theorem accept_nullable'' (r : Regex α) (s₁ s₂ : List α) (k : Loc α → O
           · rfl
 
         rw [tmp₁]
-        nth_rw 2 [accept_suffix' r.star _ none]
+        nth_rw 2 [accept_suffix r.star _ none]
         simp
       · rfl
 
@@ -840,8 +1007,8 @@ theorem accept_nullable (r : Regex α) (s₁ s₂ : List α) (k k' : Loc α → 
     | inr h =>
       exact Or.inr h.right
 
-theorem accept_not_nullable' (r : Regex α) (s₁ s₂ : List α) (k k' : Loc α → Option (Loc α)) (hn : ¬r.nullable) :
-  r.accept (s₁, s₂) k = r.accept (s₁, s₂) (fun l' => if l'.right.length < s₂.length then k l' else k' (s₁, s₂)) :=
+theorem accept_not_nullable' (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) (x : Option (Loc α)) (hn : ¬r.nullable) :
+  r.accept (s₁, s₂) k = r.accept (s₁, s₂) (fun l' => if l'.right.length < s₂.length then k l' else x) :=
   match r with
   | zero => by simp [accept]
   | one => by simp at hn
@@ -852,8 +1019,8 @@ theorem accept_not_nullable' (r : Regex α) (s₁ s₂ : List α) (k k' : Loc α
   | plus r₁ r₂ => by
     simp at hn
     simp [accept]
-    rw [accept_not_nullable' r₁ _ _ _ k']
-    rw [accept_not_nullable' r₂ _ _ _ k']
+    rw [accept_not_nullable' r₁ _ _ _ x]
+    rw [accept_not_nullable' r₂ _ _ _ x]
     rfl
     simp [hn.right]
     simp [hn.left]
@@ -863,25 +1030,25 @@ theorem accept_not_nullable' (r : Regex α) (s₁ s₂ : List α) (k k' : Loc α
     | one =>
       simp at hn
       simp [accept]
-      rw [accept_not_nullable' r₂ _ _ _ k']
+      rw [accept_not_nullable' r₂ _ _ _ x]
       rfl
       simp [hn]
     | char c =>
       cases s₂ with
       | nil => simp [accept]
-      | cons x xs =>
+      | cons y ys =>
         simp [accept]
         split_ifs with hc
         · simp_rw [Nat.lt_succ]
-          rw [accept_suffix' _ _ (k' (s₁, x::xs))]
+          rw [accept_suffix _ _ x]
           simp
         · rfl
     | plus r₁₁ r₁₂ =>
       simp at hn
       simp [accept]
       repeat rw [←accept_mul_def]
-      rw [accept_not_nullable' (r₁₁.mul r₂) _ _ k k']
-      rw [accept_not_nullable' (r₁₂.mul r₂) _ _ k k']
+      rw [accept_not_nullable' (r₁₁.mul r₂) _ _ k x]
+      rw [accept_not_nullable' (r₁₂.mul r₂) _ _ k x]
       rfl
       · simp
         intro h
@@ -903,7 +1070,7 @@ theorem accept_not_nullable' (r : Regex α) (s₁ s₂ : List α) (k k' : Loc α
       -- Must be true because of the star condition
       rw [accept, accept, accept, accept]
       simp
-      rw [accept_not_nullable' r₂ _ _ k k']
+      rw [accept_not_nullable' r₂ _ _ k x]
       simp
       sorry
       simp [hn]
@@ -948,7 +1115,7 @@ theorem accept_not_nullable (r : Regex α) (s₁ s₂ : List α) (k : Loc α →
         simp [accept]
         split_ifs with hc
         · simp_rw [Nat.lt_succ]
-          rw [accept_suffix]
+          rw [accept_suffix _ _ none]
           simp
         · rfl
     | plus r₁₁ r₁₂ =>
