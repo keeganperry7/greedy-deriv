@@ -978,19 +978,87 @@ theorem accept_nullable (r : Regex α) (s₁ s₂ : List α) (k k' : Loc α → 
         sorry
       | inr h => exact Or.inr h
   | mul r₁ r₂ ih₁ ih₂ =>
-    simp [accept] at h
-    apply ih₁ at h
-    cases h with
-    | inl h =>
-      simp [accept]
-      left
-      sorry
-    | inr h =>
+    cases r₁ with
+    | zero => simp [accept] at h
+    | one =>
+      simp [accept] at *
       apply ih₂ at h
+      exact h
+    | char c =>
+      cases s₂ with
+      | nil => simp [accept] at h
+      | cons x xs =>
+        simp [accept] at h
+        let ⟨hc, h⟩ := h
+        simp [hc, accept]
+        simp_rw [Nat.lt_succ]
+        left
+        rw [accept_suffix r₂ _ (k' (s₁, x::xs))] at h
+        exact h
+    | plus r₁₁ r₁₂ =>
+      simp [accept] at h
+      cases h with
+      | inl h =>
+        rw [←accept_mul_def] at h
+        -- apply accept_nullable _ _ _ _ k' at h
+        -- cases h with
+        -- | inl h =>
+        --   simp [accept]
+        --   rw [←accept_mul_def]
+        --   exact Or.inl (Or.inl h)
+        -- | inr h => exact Or.inr h
+        sorry
+      | inr h =>
+        let ⟨h₁, h₂⟩ := h
+        rw [←accept_mul_def] at h₂
+        -- apply accept_nullable _ _ _ _ k' at h₂
+        -- cases h₂ with
+        -- | inl h₂ =>
+        --   simp [accept]
+        --   left
+        --   right
+        --   repeat rw [←accept_mul_def]
+        --   refine ⟨?_, h₂⟩
+        --   rw [←accept_mul_def] at h₁
+        --   apply accept_none at h₁
+        --   apply h₁
+        --   -- TODO: Add hk constraint
+        --   sorry
+        -- | inr h₂ => exact Or.inr h₂
+        sorry
+    | mul r₁₁ r₁₂ =>
+      -- simp [accept] at h
+      -- simp_rw [←accept_mul_def] at h
+      -- apply accept_nullable _ _ _ _ k' at h
+      -- simp [accept] at *
+      -- exact h
+      sorry
+    | star r =>
+      rw [accept, accept] at h
+      simp at h
       cases h with
       | inl h =>
         sorry
-      | inr h => exact Or.inr h
+      | inr h =>
+        let ⟨h₁, h₂⟩ := h
+        apply ih₂ at h₂
+        cases h₂ with
+        | inl h₂ =>
+          left
+          rw [accept, accept]
+          simp
+          right
+          refine ⟨?_, h₂⟩
+          apply accept_none at h₁
+          apply h₁
+          intro s₃ s₄
+          split_ifs
+          · rw [←accept_mul_def]
+            -- True if r₂.nullable
+            sorry
+          · -- True if r₂.nullable
+            sorry
+        | inr h₂ => exact Or.inr h₂
   | star r ih =>
     rw [accept] at h
     simp at h
@@ -1000,7 +1068,103 @@ theorem accept_nullable (r : Regex α) (s₁ s₂ : List α) (k k' : Loc α → 
       cases h with
       | inl h =>
         simp at h
-        sorry
+        left
+        rw [accept]
+        simp
+        left
+        have tmp :
+          (fun l' ↦
+            if l'.2.length < s₂.length then
+              if l'.2.length < s₂.length then
+                r.star.accept l' k
+              else k (s₁, s₂)
+          else k' (s₁, s₂)) =
+          (fun l' ↦
+            if l'.2.length < s₂.length then
+              r.star.accept l' k
+          else k' (s₁, s₂)) := by
+          ext l' t
+          split_ifs with hl
+          · rfl
+          · rfl
+
+        have tmp₂ :
+          (fun loc' ↦
+            if loc'.2.length < s₂.length then
+              r.star.accept loc' fun l' ↦
+                if l'.2.length < s₂.length then
+                  k l'
+                else k' (s₁, s₂)
+            else k' (s₁, s₂)) =
+          (fun loc' ↦
+            if loc'.2.length < s₂.length then
+              r.star.accept loc' fun l' ↦
+                if l'.2.length ≤ loc'.2.length then
+                  if l'.2.length < s₂.length then
+                    k l'
+                  else k' (s₁, s₂)
+                else k' (s₁, s₂)
+            else k' (s₁, s₂)) := by
+          ext loc' t
+          split_ifs with l
+          · rw [accept_suffix r.star _ (k' (s₁, s₂))]
+            rfl
+          · rfl
+
+        have tmp₃ :
+          (fun loc' ↦
+            if loc'.2.length < s₂.length then
+              r.star.accept loc' fun l' ↦
+                if l'.2.length ≤ loc'.2.length then
+                  if l'.2.length < s₂.length then
+                    k l'
+                  else k' (s₁, s₂)
+                else k' (s₁, s₂)
+            else k' (s₁, s₂)) =
+          (fun loc' ↦
+            if loc'.2.length < s₂.length then
+              r.star.accept loc' fun l' ↦
+                if l'.2.length ≤ loc'.2.length then
+                  k l'
+                else k' (s₁, s₂)
+            else k' (s₁, s₂)) := by
+          ext loc' t
+          split_ifs with hl
+          ·
+            have tmp₃₁ :
+              (fun l' ↦
+                if l'.2.length ≤ loc'.2.length then
+                  if l'.2.length < s₂.length then
+                    k l'
+                  else k' (s₁, s₂)
+                else k' (s₁, s₂)) =
+              (fun l' ↦
+                if l'.2.length ≤ loc'.2.length then
+                  k l'
+                else k' (s₁, s₂)) := by
+              ext l' u
+              split_ifs with h₁ h₂
+              · rfl
+              · absurd h₂
+                rw [Nat.le_iff_lt_or_eq] at h₁
+                cases h₁ with
+                | inl h₁ =>
+                  apply Nat.lt_trans
+                  exact h₁
+                  exact hl
+                | inr h₁ =>
+                  rw [h₁]
+                  exact hl
+              · rfl
+            rw [tmp₃₁]
+          · rfl
+
+        rw [tmp₂, tmp₃]
+        rw [tmp] at h
+        clear tmp tmp₂ tmp₃
+        simp_rw [accept_suffix r.star k (k' (s₁, s₂))] at h
+        simp at h
+        exact h
       | inr h =>
         simp at h
         exact Or.inr h
@@ -1250,6 +1414,293 @@ decreasing_by
   · simp
     omega
   · decreasing_tactic
+
+theorem accept_nullable_new (r : Regex α) (s₁ s₂ : List α) (x : Option (Loc α)) (k : Loc α → Option (Loc α)) (hn : r.nullable)
+  (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) (hx : x.isSome) :
+  r.accept (s₁, s₂) k = (r.accept (s₁, s₂) (fun l' => if l'.right.length < s₂.length then k l' else x)) ∨
+  r.accept (s₁, s₂) k = k (s₁, s₂) :=
+  match r with
+  | zero => by
+    simp at hn
+  | one => by
+    simp [accept]
+  | char c => by
+    simp at hn
+  | plus r₁ r₂ => by
+    simp at hn
+    cases hn with
+    | inl hn =>
+      simp [accept]
+      cases (accept_nullable_new r₁ s₁ s₂ x k hn hk hx) with
+      | inl h =>
+        left
+        rw [h, Option.or_of_isSome, Option.or_of_isSome]
+        rfl
+        apply accept_nullable'
+        exact hn
+        split_ifs
+        · apply hk
+        · exact hx
+        apply accept_nullable'
+        exact hn
+        split_ifs
+        · apply hk
+        · exact hx
+      | inr h =>
+        rw [h]
+        right
+        rw [Option.or_of_isSome]
+        apply hk
+    | inr hn =>
+      simp [accept]
+      by_cases hn₁ : r₁.nullable
+      · cases (accept_nullable_new r₁ s₁ s₂ x k hn₁ hk hx) with
+        | inl h =>
+          left
+          rw [h, Option.or_of_isSome, Option.or_of_isSome]
+          rfl
+          apply accept_nullable'
+          exact hn₁
+          simp [hx]
+          apply accept_nullable'
+          exact hn₁
+          simp [hx]
+        | inr h =>
+          rw [h]
+          right
+          rw [Option.or_of_isSome]
+          apply hk
+      · rw [accept_not_nullable r₁ _ _ _ x hn₁]
+        simp
+        by_cases hr₁ : (r₁.accept (s₁, s₂) fun l' ↦ if l'.2.length < s₂.length then k l' else x).isSome
+        · left
+          rw [Option.or_of_isSome, Option.or_of_isSome]
+          exact hr₁
+          exact hr₁
+        · simp at hr₁
+          rw [hr₁]
+          simp
+          cases (accept_nullable_new r₂ s₁ s₂ x k hn hk hx) with
+          | inl h =>
+            rw [h]
+            simp
+          | inr h =>
+            rw [h]
+            simp
+  | mul r₁ r₂ => by
+    cases r₁ with
+    | zero => simp at hn
+    | one =>
+      simp at hn
+      simp [accept]
+      apply accept_nullable_new
+      exact hn
+      exact hk
+      exact hx
+    | char c => simp at hn
+    | plus r₁₁ r₁₂ =>
+      simp [accept]
+      repeat rw [←accept_mul_def]
+      simp at hn
+      let ⟨hn₁, hn₂⟩ := hn
+      cases hn₁ with
+      | inl hn₁ =>
+        cases (accept_nullable_new (r₁₁.mul r₂) s₁ s₂ x k (by simp [hn₁, hn₂]) hk hx) with
+        | inl h =>
+          rw [h]
+          left
+          rw [Option.or_of_isSome, Option.or_of_isSome]
+          rfl
+          apply accept_nullable'
+          simp [hn₁, hn₂]
+          simp [hx]
+          apply accept_nullable'
+          simp [hn₁, hn₂]
+          simp [hx]
+        | inr h =>
+          rw [h]
+          right
+          rw [Option.or_of_isSome]
+          apply hk
+      | inr hn₁ =>
+        by_cases hn₃ : r₁₁.nullable
+        · cases (accept_nullable_new (r₁₁.mul r₂) s₁ s₂ x k (by simp [hn₃, hn₂]) hk hx) with
+          | inl h =>
+            rw [h]
+            left
+            rw [Option.or_of_isSome, Option.or_of_isSome]
+            rfl
+            apply accept_nullable'
+            simp [hn₃, hn₂]
+            simp [hx]
+            apply accept_nullable'
+            simp [hn₃, hn₂]
+            simp [hx]
+          | inr h =>
+            rw [h]
+            right
+            rw [Option.or_of_isSome]
+            apply hk
+        · rw [accept_not_nullable (r₁₁.mul r₂) _ _ _ x (by simp [hn₃])]
+          simp
+          by_cases hr₁ : ((r₁₁.mul r₂).accept (s₁, s₂) fun l' ↦ if l'.2.length < s₂.length then k l' else x).isSome
+          · left
+            rw [Option.or_of_isSome, Option.or_of_isSome]
+            exact hr₁
+            exact hr₁
+          · simp at hr₁
+            rw [hr₁]
+            simp
+            cases (accept_nullable_new (r₁₂.mul r₂) s₁ s₂ x k (by simp [hn₁, hn₂]) hk hx) with
+            | inl h =>
+              rw [h]
+              simp
+            | inr h =>
+              rw [h]
+              simp
+    | mul r₁₁ r₁₂ =>
+      -- simp [accept]
+      -- simp_rw [←accept_mul_def]
+      -- apply accept_nullable_new
+      -- simp at hn
+      -- simp [hn]
+      -- exact hk
+      -- exact hx
+      sorry
+    | star r => sorry
+  | .star r => by
+    rw [accept]
+    simp
+    by_cases hr : ((r.accept (s₁, s₂) fun loc' ↦ if loc'.2.length < s₂.length then r.star.accept loc' k else k (s₁, s₂))).isSome
+    · rw [Option.or_of_isSome, accept]
+      simp
+      simp_rw [accept_suffix r.star (fun l' ↦ if l'.2.length < s₂.length then k l' else x) x]
+      simp
+
+      have tmp :
+        (fun loc' ↦
+          if loc'.2.length < s₂.length then
+            r.star.accept loc' fun l' ↦
+              if l'.2.length ≤ loc'.2.length then
+                if l'.2.length < s₂.length then
+                  k l'
+                else x
+              else x
+          else x) =
+        (fun loc' ↦
+          if loc'.2.length < s₂.length then
+            r.star.accept loc' fun l' ↦
+              k l'
+          else x) := by
+        ext loc' t
+        split_ifs with hl
+        ·
+          have tmp₁ :
+            (fun l' ↦
+              if l'.2.length ≤ loc'.2.length then
+                if l'.2.length < s₂.length then
+                  k l'
+                else x
+              else x) =
+            (fun l' ↦
+              if l'.2.length ≤ loc'.2.length then
+                k l'
+              else x) := by
+            ext l' u
+            split_ifs with h₁ h₂
+            · rfl
+            · absurd h₂
+              rw [Nat.le_iff_lt_or_eq] at h₁
+              cases h₁ with
+              | inl h₁ =>
+                apply Nat.lt_trans
+                exact h₁
+                exact hl
+              | inr h₁ =>
+                rw [h₁]
+                exact hl
+            . rfl
+          rw [tmp₁]
+          rw [accept_suffix r.star (fun l' ↦ k l') x]
+          simp
+        · rfl
+
+      rw [tmp]
+      clear tmp
+      by_cases hn₁ : r.nullable
+      ·
+        have hk' : (∀ s₃ s₄, ((fun loc' ↦ if loc'.2.length < s₂.length then r.star.accept loc' k else k (s₁, s₂)) (s₃, s₄)).isSome) := by
+          intro s₃ s₄
+          simp
+          split_ifs
+          · apply accept_nullable'
+            simp
+            apply hk
+          · apply hk
+
+        cases (accept_nullable_new r s₁ s₂ x (fun loc' ↦ if loc'.2.length < s₂.length then r.star.accept loc' k else k (s₁, s₂)) hn₁ hk' hx) with
+        | inl h =>
+          rw [h]
+          rw [h] at hr
+          have tmp :
+            (fun l' ↦
+              if l'.right.length < s₂.length then
+                if l'.2.length < s₂.length then
+                  r.star.accept l' k
+                else k (s₁, s₂)
+              else x) =
+            (fun l' ↦
+              if l'.right.length < s₂.length then
+                r.star.accept l' k
+              else x) := by
+            ext l' t
+            split_ifs with h₁ h₂
+            · rfl
+            · absurd h₂
+              exact h₁
+            · rfl
+          rw [tmp]
+          rw [tmp] at hr
+          clear tmp
+          rw [Option.or_of_isSome]
+          left
+          rfl
+          exact hr
+        | inr h =>
+          simp at h
+          rw [h]
+          right
+          rfl
+      · rw [accept_not_nullable r _ _ _ x hn₁]
+        rw [accept_not_nullable r _ _ _ x hn₁] at hr
+        have tmp :
+          (fun l' ↦
+            if l'.right.length < s₂.length then
+              if l'.2.length < s₂.length then
+                r.star.accept l' k
+              else k (s₁, s₂)
+            else x) =
+          (fun l' ↦
+            if l'.right.length < s₂.length then
+              r.star.accept l' k
+            else x) := by
+          ext l' t
+          split_ifs with h₁ h₂
+          · rfl
+          · absurd h₂
+            exact h₁
+          · rfl
+        rw [tmp]
+        rw [tmp] at hr
+        clear tmp
+        rw [Option.or_of_isSome]
+        left
+        rfl
+        exact hr
+      exact hr
+    · simp at hr
+      rw [hr]
+      simp
 
 theorem accept_nil_none (r : Regex α) (s : List α) (k : Loc α → Option (Loc α)) :
   ¬r.nullable ∨ k (s, []) = none →
@@ -1784,17 +2235,48 @@ theorem accept_deriv' (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Optio
       rw [←accept_mul_def] at h
       -- Need to show that (r.mul r.star).accept l k = some loc → r.star.accept l k = some loc
       rw [accept] at h
-      apply accept_nullable _ _ _ _ k at h
-      cases h with
-      | inl h =>
-        rw [accept]
+      by_cases hn₁ : r.nullable
+      ·
+        have hstar : ∀ s₃ s₄, (r.star.accept (s₃, s₄) k).isSome := by
+          intro s₃ s₄
+          apply accept_nullable'
+          simp
+          apply hk
+        have h' := accept_nullable_new r s₁ (x::s₂) (k (s₁, x::s₂)) (fun loc' ↦ r.star.accept loc' k)  hn₁ hstar (hk s₁ (x::s₂))
+        cases h' with
+        | inl h' =>
+          rw [accept]
+          simp
+          left
+          rw [h'] at h
+          simp at h
+          exact h
+        | inr h' =>
+          rw [h'] at h
+          exact h
+      · rw [accept]
         simp
-        exact Or.inl h
-      | inr h => exact h
+        left
+        rw [accept_not_nullable _ _ _ _ (k (s₁, x::s₂))] at h
+        simp at h
+        exact h
+        exact hn₁
       intro s₃ s₄
       apply accept_nullable'
       simp
       apply hk
+
+      -- apply accept_nullable _ _ _ _ k at h
+      -- cases h with
+      -- | inl h =>
+      --   rw [accept]
+      --   simp
+      --   exact Or.inl h
+      -- | inr h => exact h
+      -- intro s₃ s₄
+      -- apply accept_nullable'
+      -- simp
+      -- apply hk
 termination_by (r.size, r.left.size)
 decreasing_by
   · decreasing_tactic
@@ -1806,6 +2288,8 @@ decreasing_by
   · decreasing_tactic
   · simp
     omega
+  · decreasing_tactic
+  · decreasing_tactic
   · decreasing_tactic
 
 theorem accept_deriv (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) (loc : Loc α) :
