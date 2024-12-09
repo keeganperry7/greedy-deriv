@@ -54,6 +54,7 @@ theorem matchEnd_accept_some (r : Regex α) (s₁ s₂ : List α) (loc : Loc α)
       rw [h] at k
       apply ih at k
       apply accept_deriv
+      simp
       exact k
 
 theorem rmatch_gmatch (r : Regex α) (s : List α) (v : Option (Loc α)) :
