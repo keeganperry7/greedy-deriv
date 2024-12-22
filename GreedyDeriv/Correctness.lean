@@ -46,8 +46,10 @@ theorem matchEnd_accept_some (r : Regex α) (s₁ s₂ : List α) (loc : Loc α)
       simp at h
       apply matchEnd_accept_none at k
       rw [←h.right]
-      apply accept_deriv_some
-      exact ⟨h.left, k, rfl⟩
+      apply accept_deriv_none_nullable at k
+      exact k
+      exact h.left
+      simp
     | some v =>
       rw [k] at h
       simp at h

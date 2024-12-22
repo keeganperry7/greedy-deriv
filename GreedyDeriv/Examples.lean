@@ -51,3 +51,24 @@ def r8 : Regex Char := (Regex.one.plus (Regex.char 'a')).mul (Regex.char 'b')
 -- ((a|ε|b)|b)
 def r9 : Regex Char := Regex.plus (((Regex.char 'a').plus (Regex.char 'a').star).plus (Regex.char 'b')) (Regex.char 'b')
 #eval r9.gmatch "b".toList
+#eval r9.rmatch "b".toList
+
+-- (ε|a)*b
+def r10 : Regex Char := (Regex.plus Regex.one (Regex.char 'a')).star.mul (Regex.char 'b')
+#eval r10.gmatch "ab".toList
+#eval r10.rmatch "ab".toList
+
+-- (a|ε)*(ε|b)
+def r11 : Regex Char := (Regex.plus (Regex.char 'a') Regex.one).star.mul (Regex.plus (Regex.one) (Regex.char 'b'))
+#eval r11.gmatch "ab".toList
+#eval r11.rmatch "ab".toList
+
+-- (ε|a)*(ε|b)
+def r12 : Regex Char := (Regex.plus Regex.one (Regex.char 'a')).star.mul (Regex.plus (Regex.one) (Regex.char 'b'))
+#eval r12.gmatch "ab".toList
+#eval r12.rmatch "ab".toList
+
+-- (a|ε|b)*b
+def r13 : Regex Char := (Regex.plus (Regex.char 'a') (Regex.plus Regex.one (Regex.char 'b'))).star.mul (Regex.char 'b')
+#eval r13.gmatch "bb".toList
+#eval r13.rmatch "bb".toList

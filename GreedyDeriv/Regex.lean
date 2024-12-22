@@ -163,7 +163,13 @@ def prune : Regex α → Regex α
               then (r₁₁.mul r₂).prune
               else plus (r₁₁.mul r₂).prune (r₁₂.mul r₂).prune
         | mul r₁₁ r₁₂ => (mul r₁₁ (r₁₂.mul r₂)).prune
-        | star r => mul r.star r₂ -- TODO: Come up with prune definition
+        | star r =>
+          match r₂.nullable with
+          | true =>
+            if r.highNullable
+              then r₂.prune
+              else mul r.star.prune r₂.prune
+          | false => mul r.star r₂
   | star r =>
     if r.highNullable
       then one
@@ -179,6 +185,9 @@ decreasing_by
   · decreasing_tactic
   · simp only [size, left]
     omega
+  · decreasing_tactic
+  · decreasing_tactic
+  · decreasing_tactic
   · decreasing_tactic
 
 theorem prune_highNullable {α : Type u} {r : Regex α} (hn : r.highNullable) :
@@ -197,6 +206,47 @@ theorem prune_highNullable {α : Type u} {r : Regex α} (hn : r.highNullable) :
   | star r =>
     simp at hn
     simp [prune, hn]
+
+theorem prune_highNullable_highNullable {α : Type u} {r : Regex α} :
+  r.prune.highNullable = r.highNullable := by
+  induction r with
+  | zero => simp
+  | one => simp
+  | char => simp
+  | plus r₁ r₂ ih₁ ih₂ =>
+    simp
+    split_ifs with h₁ h₂
+    · simp
+      exact h₁
+    · rw [ih₁]
+    · simp
+      rw [ih₁]
+  | mul r₁ r₂ ih₁ ih₂ =>
+    cases r₁ with
+    | zero => simp
+    | one =>
+      simp
+      split_ifs with h₁
+      · simp
+        exact h₁
+      · rw [ih₂]
+    | char => simp
+    | plus r₁₁ r₁₂ =>
+      simp
+      split_ifs
+      · sorry
+      · sorry
+      · simp
+        sorry
+    | mul => sorry
+    | star => sorry
+  | star r ih =>
+    simp
+    split_ifs with h₁
+    · simp
+      exact h₁
+    · simp
+      rw [ih]
 
 theorem prune_star_not_highNullable {α : Type u} {r : Regex α} (hn : ¬r.highNullable) :
   r.star.prune = r.prune.star := by
