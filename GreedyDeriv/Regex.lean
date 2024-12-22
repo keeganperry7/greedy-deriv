@@ -25,6 +25,15 @@ def size : Regex α → Nat
   | mul r₁ r₂ => 1 + r₁.size + r₂.size
   | star r => 1 + r.size
 
+@[simp]
+def left : Regex α → Regex α
+  | zero => zero
+  | one => one
+  | char c => char c
+  | plus r₁ r₂ => plus r₁ r₂
+  | mul r₁ _ => r₁
+  | star r => star r
+
 inductive matches' : Regex α → List α → Prop where
   | one : matches' one []
   | char (c : α) : matches' (char c) [c]
@@ -94,7 +103,7 @@ def highNullable : Regex α → Bool
   | char _ => false
   | plus r₁ _ => r₁.highNullable
   | mul r₁ r₂ => r₁.highNullable && r₂.highNullable
-  | star r => r.highNullable
+  | star _ => false
 
 theorem highNullable_nullable {α : Type u} {r : Regex α} :
   r.highNullable → r.nullable := by
@@ -121,22 +130,25 @@ def deriv : Regex α → α → Regex α
   | one, _ => zero
   | char c, c' => if c = c' then one else zero
   | plus r₁ r₂, c => (r₁.deriv c).plus (r₂.deriv c)
-  | mul r₁ r₂, c =>
-    if highNullable r₁
-      then (r₂.deriv c).plus ((r₁.deriv c).mul r₂)
-      else if nullable r₁
-        then ((r₁.deriv c).mul r₂).plus (r₂.deriv c)
-        else (r₁.deriv c).mul r₂
+  | mul zero _, _ => zero
+  | mul one r₂, c => r₂.deriv c
+  | mul (char c) r₂, c' => if c = c' then r₂ else zero
+  | mul (plus r₁₁ r₁₂) r₂, c => plus ((r₁₁.mul r₂).deriv c) ((r₁₂.mul r₂).deriv c)
+  | mul (mul r₁₁ r₁₂) r₂, c => (r₁₁.mul (r₁₂.mul r₂)).deriv c
+  | mul (star r) r₂, c => plus ((r.deriv c).mul (r.star.mul r₂)) (r₂.deriv c)
   | star r, c => (r.deriv c).mul r.star
-
-@[simp]
-def left : Regex α → Regex α
-  | zero => zero
-  | one => one
-  | char c => char c
-  | plus r₁ r₂ => plus r₁ r₂
-  | mul r₁ _ => r₁
-  | star r => star r
+  termination_by r => (r.size, r.left.size)
+  decreasing_by
+    · decreasing_tactic
+    · decreasing_tactic
+    · decreasing_tactic
+    · decreasing_tactic
+    · decreasing_tactic
+    · simp
+      omega
+    · decreasing_tactic
+    · decreasing_tactic
+    · decreasing_tactic
 
  @[simp]
 def prune : Regex α → Regex α
@@ -163,17 +175,8 @@ def prune : Regex α → Regex α
               then (r₁₁.mul r₂).prune
               else plus (r₁₁.mul r₂).prune (r₁₂.mul r₂).prune
         | mul r₁₁ r₁₂ => (mul r₁₁ (r₁₂.mul r₂)).prune
-        | star r =>
-          match r₂.nullable with
-          | true =>
-            if r.highNullable
-              then r₂.prune
-              else mul r.star.prune r₂.prune
-          | false => mul r.star r₂
-  | star r =>
-    if r.highNullable
-      then one
-      else star r.prune
+        | star r => mul r.star r₂.prune
+  | star r => r.star
 termination_by r => (r.size, r.left.size)
 decreasing_by
   · decreasing_tactic
@@ -185,9 +188,6 @@ decreasing_by
   · decreasing_tactic
   · simp only [size, left]
     omega
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
   · decreasing_tactic
 
 theorem prune_highNullable {α : Type u} {r : Regex α} (hn : r.highNullable) :
@@ -203,54 +203,7 @@ theorem prune_highNullable {α : Type u} {r : Regex α} (hn : r.highNullable) :
     simp at hn
     rw [prune.eq_def]
     simp [hn]
-  | star r =>
-    simp at hn
-    simp [prune, hn]
-
-theorem prune_highNullable_highNullable {α : Type u} {r : Regex α} :
-  r.prune.highNullable = r.highNullable := by
-  induction r with
-  | zero => simp
-  | one => simp
-  | char => simp
-  | plus r₁ r₂ ih₁ ih₂ =>
-    simp
-    split_ifs with h₁ h₂
-    · simp
-      exact h₁
-    · rw [ih₁]
-    · simp
-      rw [ih₁]
-  | mul r₁ r₂ ih₁ ih₂ =>
-    cases r₁ with
-    | zero => simp
-    | one =>
-      simp
-      split_ifs with h₁
-      · simp
-        exact h₁
-      · rw [ih₂]
-    | char => simp
-    | plus r₁₁ r₁₂ =>
-      simp
-      split_ifs
-      · sorry
-      · sorry
-      · simp
-        sorry
-    | mul => sorry
-    | star => sorry
-  | star r ih =>
-    simp
-    split_ifs with h₁
-    · simp
-      exact h₁
-    · simp
-      rw [ih]
-
-theorem prune_star_not_highNullable {α : Type u} {r : Regex α} (hn : ¬r.highNullable) :
-  r.star.prune = r.prune.star := by
-  simp [prune, hn]
+  | star r => simp at hn
 
 def matchEnd : Regex α → Loc α → Option (Loc α)
   | r, (u, []) =>
