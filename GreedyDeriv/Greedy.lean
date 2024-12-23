@@ -1724,3 +1724,92 @@ decreasing_by
   · simp
     omega
   · decreasing_tactic
+
+theorem accept_deriv_not_nullable (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) (hn : ¬r.nullable) :
+  (r.prune.deriv x).accept (x::s₁, s₂) k = r.accept (s₁, x::s₂) k :=
+  match r with
+  | zero => by simp [accept]
+  | one => by simp at hn
+  | char c => by
+    simp [accept]
+    split_ifs with hc
+    · simp [accept]
+    · simp [accept]
+  | plus r₁ r₂ => by
+    simp at hn
+    simp [accept]
+    split_ifs with hr₁ hr₂
+    · absurd (highNullable_nullable hr₁)
+      simp [hn]
+    · absurd hr₂
+      simp [hn]
+    · simp [accept]
+      rw [accept_deriv_not_nullable, accept_deriv_not_nullable]
+      exact hk
+      simp [hn]
+      exact hk
+      simp [hn]
+  | mul r₁ r₂ => by
+    match r₁ with
+    | zero => simp [accept]
+    | one =>
+      simp at hn
+      simp [accept]
+      split_ifs with hr
+      · absurd (highNullable_nullable hr)
+        simp [hn]
+      · rw [accept_deriv_not_nullable]
+        exact hk
+        simp [hn]
+    | char c =>
+      simp [accept]
+      split_ifs
+      · rfl
+      · simp [accept]
+    | plus r₁₁ r₁₂ =>
+      simp [accept]
+      split_ifs with hr₁ hr₂
+      · simp at hn
+        have hr₁₁ := highNullable_nullable hr₁.left
+        simp [hr₁₁] at hn
+        absurd (highNullable_nullable hr₁.right)
+        simp [hn]
+      · simp_all
+      · simp [accept]
+        rw [accept_deriv_not_nullable, accept_deriv_not_nullable]
+        simp [accept]
+        exact hk
+        simp_all
+        exact hk
+        simp_all
+    | mul r₁₁ r₁₂ =>
+      simp [accept]
+      split_ifs with hr
+      · absurd hn
+        simp
+        exact ⟨⟨highNullable_nullable hr.left.left, highNullable_nullable hr.left.right⟩, highNullable_nullable hr.right⟩
+      · rw [accept_deriv_not_nullable]
+        simp [accept]
+        exact hk
+        simp at *
+        tauto
+    | .star r =>
+      simp at hn
+      simp
+      rw [accept, accept, accept_deriv_not_nullable r₂]
+      rw [accept_deriv_cond, accept, accept]
+      simp_rw [accept_mul_def, ←accept_prune r₂ _ _ k hk]
+      simp
+      exact hk
+      simp [hn]
+  | .star r => by simp at hn
+termination_by (r.size, r.left.size)
+decreasing_by
+  · decreasing_tactic
+  · decreasing_tactic
+  · decreasing_tactic
+  · decreasing_tactic
+  · decreasing_tactic
+  · simp
+    omega
+  · decreasing_tactic

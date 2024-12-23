@@ -19,11 +19,10 @@ theorem matchEnd_accept_none (r : Regex α) (s₁ s₂ : List α) :
       rw [k] at h
       simp at h
       apply ih at k
-      apply accept_deriv_none
-      simp
-      exact h
-      simp
+      rw [accept_deriv_not_nullable] at k
       exact k
+      simp
+      simp [h]
     | some =>
       rw [k] at h
       simp at h
