@@ -1,7 +1,6 @@
 import GreedyDeriv.Locations
 import Mathlib.Tactic.SplitIfs
 import Mathlib.Tactic.ApplyAt
--- import Mathlib
 
 inductive Regex (α :  Type u) : Type u where
   | zero : Regex α
