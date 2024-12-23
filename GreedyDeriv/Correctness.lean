@@ -9,8 +9,9 @@ theorem matchEnd_accept_none (r : Regex α) (s₁ s₂ : List α) :
   | nil =>
     intro h
     simp [Regex.matchEnd] at h
-    rw [accept_nil_not_nullable]
+    rw [accept_nil_not_nullable_iff]
     simp [h]
+    simp
   | cons x xs ih =>
     intro h
     simp [Regex.matchEnd] at h

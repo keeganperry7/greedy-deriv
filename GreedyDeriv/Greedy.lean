@@ -1117,6 +1117,61 @@ decreasing_by
   · decreasing_tactic
   · decreasing_tactic
 
+theorem accept_nil_not_nullable_iff {r : Regex α} {s : List α} {k : Loc α → Option (Loc α)} (hk : (k (s, [])).isSome) :
+  r.accept (s, []) k = none ↔ ¬r.nullable :=
+  match r with
+  | zero => by
+    simp [accept]
+  | one => by
+    simp [accept]
+    rw [←ne_eq, Option.ne_none_iff_isSome]
+    exact hk
+  | char c => by simp [accept]
+  | plus r₁ r₂ => by
+    simp [accept]
+    rw [accept_nil_not_nullable_iff hk, accept_nil_not_nullable_iff hk]
+    simp
+  | mul r₁ r₂ => by
+    match r₁ with
+    | zero => simp [accept]
+    | one =>
+      simp [accept]
+      rw [accept_nil_not_nullable_iff hk]
+      simp
+    | char c => simp [accept]
+    | plus r₁₁ r₁₂ =>
+      simp [accept]
+      simp_rw [←accept_mul_def]
+      rw [accept_nil_not_nullable_iff hk, accept_nil_not_nullable_iff hk]
+      simp
+      tauto
+    | mul r₁₁ r₁₂ =>
+      simp [accept]
+      simp_rw [←accept_mul_def]
+      rw [accept_nil_not_nullable_iff hk]
+      simp
+    | .star r =>
+      rw [accept, accept]
+      simp
+      rw [accept_cont_none, accept_nil_not_nullable_iff hk]
+      simp
+  | .star r => by
+    simp
+    rw [←ne_eq, Option.ne_none_iff_isSome]
+    apply accept_nullable
+    simp only [nullable]
+    exact hk
+termination_by (r.size, r.left.size)
+decreasing_by
+  · decreasing_tactic
+  · decreasing_tactic
+  · decreasing_tactic
+  · decreasing_tactic
+  · decreasing_tactic
+  · simp
+    omega
+  · decreasing_tactic
+
 theorem accept_nil_not_nullable {r : Regex α} {s : List α} {k : Loc α → Option (Loc α)} (hr : ¬r.nullable) :
   r.accept (s, []) k = none :=
   match r with
