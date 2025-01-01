@@ -10,8 +10,7 @@ theorem matchEnd_accept (r : Regex α) (s₁ s₂ : List α) :
     simp [Regex.matchEnd]
     split_ifs with hn
     · rw [accept_nil_nullable hn]
-    · rw [accept_nil_not_nullable]
-      exact hn
+    · rw [accept_nil_not_nullable hn]
   | cons x xs ih =>
     simp [Regex.matchEnd]
     cases k : ((r.prune.deriv x).matchEnd (x :: s₁, xs)) with
