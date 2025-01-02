@@ -1,16 +1,15 @@
 import GreedyDeriv.Regex
 import GreedyDeriv.Greedy
 
-variable {α : Type u} [DecidableEq α]
+variable {α σ : Type u} [EffectiveBooleanAlgebra α σ]
 
 open Regex
 
-theorem accept_deriv_cond (r : Regex α) (s₁ s₂ : List α) (x : α) (k : Loc α → Option (Loc α)) :
+theorem accept_deriv_cond (r : Regex α) (s₁ s₂ : List σ) (x : σ) (k : Loc σ → Option (Loc σ)) :
   (r.deriv x).accept (x::s₁, s₂) k = r.accept (s₁, x::s₂) (fun l' ↦ if l'.right.length < (x::s₂).length then k l' else none) :=
   match r with
-  | zero => by simp [accept]
-  | one => by simp [accept]
-  | char c => by
+  | epsilon => by simp [accept]
+  | pred c => by
     simp [accept]
     split_ifs
     · simp [accept]
@@ -21,12 +20,11 @@ theorem accept_deriv_cond (r : Regex α) (s₁ s₂ : List α) (x : α) (k : Loc
     simp
   | mul r₁ r₂ => by
     match r₁ with
-    | zero => simp [accept]
-    | one =>
+    | epsilon =>
       simp [accept]
       rw [accept_deriv_cond]
       simp
-    | char c =>
+    | pred c =>
       simp [accept]
       split_ifs with hc
       · simp_rw [Nat.lt_add_one_iff]
@@ -105,12 +103,11 @@ theorem accept_deriv_cond (r : Regex α) (s₁ s₂ : List α) (x : α) (k : Loc
 termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
-theorem accept_prune (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) :
+theorem accept_prune (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option (Loc σ)) (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) :
   r.accept (s₁, s₂) k = r.prune.accept (s₁, s₂) k :=
   match r with
-  | zero => by simp only [prune]
-  | one => by simp only [prune]
-  | char c => by simp only [prune]
+  | epsilon => by simp only [prune]
+  | pred c => by simp only [prune]
   | plus r₁ r₂ => by
     simp only [prune]
     split_ifs with hn hn'
@@ -144,12 +141,11 @@ theorem accept_prune (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option
       exact highNullable_nullable hn.right
       apply hk
     · match r₁ with
-      | zero => simp [accept]
-      | one =>
+      | epsilon =>
         simp [accept]
         rw [accept_prune r₂]
         exact hk
-      | char c => simp [accept]
+      | pred c => simp [accept]
       | plus r₁₁ r₁₂ =>
         simp
         split_ifs with hn₁ hn₂
@@ -204,13 +200,12 @@ decreasing_by
     apply Prod.Lex.left
     simp
 
-theorem accept_deriv_none {r : Regex α} {s₁ s₂ : List α} {k : Loc α → Option (Loc α)} (hn : ¬r.nullable) (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) :
+theorem accept_deriv_none {r : Regex α} {s₁ s₂ : List σ} {k : Loc σ → Option (Loc σ)} (hn : ¬r.nullable) (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) :
   (r.prune.deriv x).accept (x::s₁, s₂) k = none →
   r.accept (s₁, x::s₂) k = none :=
   match r with
-  | zero => by simp [accept]
-  | one => by simp at hn
-  | char c => by
+  | epsilon => by simp at hn
+  | pred c => by
     simp [accept]
     split_ifs with hc
     · simp [accept, hc]
@@ -243,8 +238,7 @@ theorem accept_deriv_none {r : Regex α} {s₁ s₂ : List α} {k : Loc α → O
       simp
       exact ⟨highNullable_nullable hn'.left, highNullable_nullable hn'.right⟩
     · match r₁ with
-      | zero => simp [accept]
-      | one =>
+      | epsilon =>
         simp at h
         simp [accept]
         apply @accept_deriv_none _ r₂
@@ -252,7 +246,7 @@ theorem accept_deriv_none {r : Regex α} {s₁ s₂ : List α} {k : Loc α → O
         simp [hn]
         exact hk
         exact h
-      | char c =>
+      | pred c =>
         simp at h
         split_ifs at h with hc
         · simp [accept, hc]
@@ -302,13 +296,12 @@ theorem accept_deriv_none {r : Regex α} {s₁ s₂ : List α} {k : Loc α → O
 termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
-theorem accept_deriv_none_nullable {r : Regex α} {s₁ s₂ : List α} {k : Loc α → Option (Loc α)} (hn : r.nullable) (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) :
+theorem accept_deriv_none_nullable {r : Regex α} {s₁ s₂ : List σ} {k : Loc σ → Option (Loc σ)} (hn : r.nullable) (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) :
   (r.prune.deriv x).accept (x :: s₁, s₂) k = none →
   r.accept (s₁, x::s₂) k = k (s₁, x::s₂) :=
   match r with
-  | zero => by simp at hn
-  | one => by simp [accept]
-  | char c => by simp at hn
+  | epsilon => by simp [accept]
+  | pred c => by simp at hn
   | plus r₁ r₂ => by
     simp at hn
     simp [accept]
@@ -336,8 +329,7 @@ theorem accept_deriv_none_nullable {r : Regex α} {s₁ s₂ : List α} {k : Loc
       exact hk
   | mul r₁ r₂ => by
     match r₁ with
-    | zero => simp at hn
-    | one =>
+    | epsilon =>
       simp [accept]
       simp at hn
       split_ifs with hr
@@ -350,7 +342,7 @@ theorem accept_deriv_none_nullable {r : Regex α} {s₁ s₂ : List α} {k : Loc
         exact h
         exact hn
         exact hk
-    | char c => simp at hn
+    | pred c => simp at hn
     | plus r₁₁ r₁₂ =>
       simp [accept]
       simp at hn
@@ -419,13 +411,12 @@ theorem accept_deriv_none_nullable {r : Regex α} {s₁ s₂ : List α} {k : Loc
 termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
-theorem accept_deriv (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) (loc : Loc α) (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) :
+theorem accept_deriv (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option (Loc σ)) (loc : Loc σ) (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) :
   (r.prune.deriv x).accept (x::s₁, s₂) k = some loc →
   r.accept (s₁, x::s₂) k = some loc :=
   match r with
-  | zero => by simp [accept]
-  | one => by simp [accept]
-  | char c => by
+  | epsilon => by simp [accept]
+  | pred c => by
     simp [accept]
     split_ifs with hc
     · simp [accept, hc]
@@ -459,12 +450,11 @@ theorem accept_deriv (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option
     split_ifs with hn
     · simp [accept]
     · match r₁ with
-      | zero => simp [accept]
-      | one =>
+      | epsilon =>
         simp [accept]
         apply accept_deriv r₂
         exact hk
-      | char c =>
+      | pred c =>
         simp [accept]
         split_ifs with hc
         · simp [accept, hc]
@@ -534,12 +524,11 @@ theorem accept_deriv (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option
 termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
-theorem accept_deriv_not_nullable (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) (hn : ¬r.nullable) :
+theorem accept_deriv_not_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option (Loc σ)) (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) (hn : ¬r.nullable) :
   (r.prune.deriv x).accept (x::s₁, s₂) k = r.accept (s₁, x::s₂) k :=
   match r with
-  | zero => by simp [accept]
-  | one => by simp at hn
-  | char c => by
+  | epsilon => by simp at hn
+  | pred c => by
     simp [accept]
     split_ifs with hc
     · simp [accept]
@@ -560,8 +549,7 @@ theorem accept_deriv_not_nullable (r : Regex α) (s₁ s₂ : List α) (k : Loc 
       simp [hn]
   | mul r₁ r₂ => by
     match r₁ with
-    | zero => simp [accept]
-    | one =>
+    | epsilon =>
       simp at hn
       simp [accept]
       split_ifs with hr
@@ -570,7 +558,7 @@ theorem accept_deriv_not_nullable (r : Regex α) (s₁ s₂ : List α) (k : Loc 
       · rw [accept_deriv_not_nullable]
         exact hk
         simp [hn]
-    | char c =>
+    | pred c =>
       simp [accept]
       split_ifs
       · rfl
@@ -615,7 +603,7 @@ theorem accept_deriv_not_nullable (r : Regex α) (s₁ s₂ : List α) (k : Loc 
 termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
-theorem matchEnd_accept (r : Regex α) (s₁ s₂ : List α) :
+theorem matchEnd_accept (r : Regex α) (s₁ s₂ : List σ) :
   r.matchEnd (s₁, s₂) = r.accept (s₁, s₂) some := by
   induction s₂ generalizing r s₁ with
   | nil =>
@@ -645,7 +633,7 @@ theorem matchEnd_accept (r : Regex α) (s₁ s₂ : List α) :
       rw [k]
       simp
 
-theorem rmatch_gmatch (r : Regex α) (s : List α) :
+theorem rmatch_gmatch (r : Regex α) (s : List σ) :
   r.rmatch s = r.gmatch s := by
   rw [Regex.rmatch, Regex.gmatch]
   apply matchEnd_accept
