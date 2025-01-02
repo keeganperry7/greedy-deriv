@@ -545,23 +545,10 @@ theorem accept_suffix (r : Regex α) (k : Loc α → Option (Loc α)) (x : Optio
     rw [tmp, tmp₂, tmp₃]
 termination_by (s₂.length, r.size, r.left.size)
 decreasing_by
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
+  any_goals decreasing_tactic
   · simp
     apply Prod.Lex.right
     omega
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
 
 theorem accept_nullable (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) (hn : r.nullable) (hk : (k (s₁, s₂)).isSome) :
   (r.accept (s₁, s₂) k).isSome := by
@@ -1083,21 +1070,13 @@ theorem accept_cont_none (r : Regex α) (s₁ s₂ : List α) :
     rw [star_none, accept_cont_none]
 termination_by (s₂.length, r.size, r.left.size)
 decreasing_by
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
+  any_goals decreasing_tactic
   · apply Prod.Lex.right
     apply Prod.Lex.right' <;> (simp; omega)
   · apply Prod.Lex.right'
     exact hl
     apply Prod.Lex.left
     simp
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
 
 theorem accept_nil_not_nullable_iff {r : Regex α} {s : List α} {k : Loc α → Option (Loc α)} (hk : (k (s, [])).isSome) :
   r.accept (s, []) k = none ↔ ¬r.nullable :=
@@ -1357,16 +1336,7 @@ theorem accept_prune (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option
     simp
 termination_by (s₂.length, r.size, r.left.size)
 decreasing_by
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
+  any_goals decreasing_tactic
   · simp
     apply Prod.Lex.right
     apply Prod.Lex.right'
