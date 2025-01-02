@@ -857,15 +857,7 @@ theorem accept_not_nullable (r : Regex α) (s₁ s₂ : List α) (k : Loc α →
       simp [hn]
   | .star r => by simp at hn
 termination_by (r.size, r.left.size)
-decreasing_by
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · simp
-    omega
-  · decreasing_tactic
+decreasing_by all_goals (simp only [left, size]; omega)
 
 theorem accept_deriv_cond (r : Regex α) (s₁ s₂ : List α) (x : α) (k : Loc α → Option (Loc α)) :
   (r.deriv x).accept (x::s₁, s₂) k = r.accept (s₁, x::s₂) (fun l' ↦ if l'.right.length < (x::s₂).length then k l' else none) :=
@@ -1027,17 +1019,7 @@ theorem accept_deriv_cond (r : Regex α) (s₁ s₂ : List α) (x : α) (k : Loc
       · rfl
     rw [tmp]
 termination_by (r.size, r.left.size)
-decreasing_by
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · simp
-    omega
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
+decreasing_by all_goals (simp only [left, size]; omega)
 
 theorem accept_cont_none (r : Regex α) (s₁ s₂ : List α) :
   r.accept (s₁, s₂) (fun _ ↦ none) = none :=
@@ -1162,15 +1144,7 @@ theorem accept_nil_not_nullable_iff {r : Regex α} {s : List α} {k : Loc α →
     simp only [nullable]
     exact hk
 termination_by (r.size, r.left.size)
-decreasing_by
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · simp
-    omega
-  · decreasing_tactic
+decreasing_by all_goals (simp only [left, size]; omega)
 
 theorem accept_nil_not_nullable {r : Regex α} {s : List α} {k : Loc α → Option (Loc α)} (hr : ¬r.nullable) :
   r.accept (s, []) k = none :=
@@ -1215,15 +1189,7 @@ theorem accept_nil_not_nullable {r : Regex α} {s : List α} {k : Loc α → Opt
       simp [hr]
   | .star _ => by simp at hr
 termination_by (r.size, r.left.size)
-decreasing_by
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · simp
-    omega
-  · decreasing_tactic
+decreasing_by all_goals (simp only [left, size]; omega)
 
 theorem accept_nil_nullable {r : Regex α} {s : List α} {k : Loc α → Option (Loc α)} (hr : r.nullable) :
   r.accept (s, []) k = k (s, []) :=
@@ -1301,20 +1267,7 @@ theorem accept_nil_nullable {r : Regex α} {s : List α} {k : Loc α → Option 
     rw [accept_cont_none]
     simp
 termination_by (r.size, r.left.size)
-decreasing_by
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · simp
-    omega
-  · decreasing_tactic
-  · decreasing_tactic
+decreasing_by all_goals (simp only [left, size]; omega)
 
 theorem accept_prune (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) :
   r.accept (s₁, s₂) k = r.prune.accept (s₁, s₂) k :=
@@ -1520,15 +1473,7 @@ theorem accept_deriv_none {r : Regex α} {s₁ s₂ : List α} {k : Loc α → O
         exact hk
   | .star r => by simp at hn
 termination_by (r.size, r.left.size)
-decreasing_by
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · simp
-    omega
-  · decreasing_tactic
+decreasing_by all_goals (simp only [left, size]; omega)
 
 theorem accept_deriv_none_nullable {r : Regex α} {s₁ s₂ : List α} {k : Loc α → Option (Loc α)} (hn : r.nullable) (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) :
   (r.prune.deriv x).accept (x :: s₁, s₂) k = none →
@@ -1645,15 +1590,7 @@ theorem accept_deriv_none_nullable {r : Regex α} {s₁ s₂ : List α} {k : Loc
     rw [h]
     simp
 termination_by (r.size, r.left.size)
-decreasing_by
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · simp
-    omega
-  · decreasing_tactic
+decreasing_by all_goals (simp only [left, size]; omega)
 
 theorem accept_deriv (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) (loc : Loc α) (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) :
   (r.prune.deriv x).accept (x::s₁, s₂) k = some loc →
@@ -1768,17 +1705,7 @@ theorem accept_deriv (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option
     intro h
     exact Or.inl h
 termination_by (r.size, r.left.size)
-decreasing_by
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · simp
-    omega
-  · decreasing_tactic
+decreasing_by all_goals (simp only [left, size]; omega)
 
 theorem accept_deriv_not_nullable (r : Regex α) (s₁ s₂ : List α) (k : Loc α → Option (Loc α)) (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) (hn : ¬r.nullable) :
   (r.prune.deriv x).accept (x::s₁, s₂) k = r.accept (s₁, x::s₂) k :=
@@ -1859,12 +1786,4 @@ theorem accept_deriv_not_nullable (r : Regex α) (s₁ s₂ : List α) (k : Loc 
       simp [hn]
   | .star r => by simp at hn
 termination_by (r.size, r.left.size)
-decreasing_by
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · simp
-    omega
-  · decreasing_tactic
+decreasing_by all_goals (simp only [left, size]; omega)

@@ -137,17 +137,7 @@ def deriv : Regex α → α → Regex α
   | mul (star r) r₂, c => plus ((r.deriv c).mul (r.star.mul r₂)) (r₂.deriv c)
   | star r, c => (r.deriv c).mul r.star
   termination_by r => (r.size, r.left.size)
-  decreasing_by
-    · decreasing_tactic
-    · decreasing_tactic
-    · decreasing_tactic
-    · decreasing_tactic
-    · decreasing_tactic
-    · simp
-      omega
-    · decreasing_tactic
-    · decreasing_tactic
-    · decreasing_tactic
+  decreasing_by all_goals (simp only [left, size]; omega)
 
  @[simp]
 def prune : Regex α → Regex α
@@ -177,17 +167,7 @@ def prune : Regex α → Regex α
         | star r => mul r.star r₂.prune
   | star r => r.star
 termination_by r => (r.size, r.left.size)
-decreasing_by
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · decreasing_tactic
-  · simp only [size, left]
-    omega
-  · decreasing_tactic
+decreasing_by all_goals (simp only [left, size]; omega)
 
 theorem prune_highNullable {α : Type u} {r : Regex α} (hn : r.highNullable) :
   r.prune = one := by
