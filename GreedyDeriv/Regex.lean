@@ -9,6 +9,7 @@ inductive Regex (α :  Type u) : Type u where
   | plus : Regex α → Regex α → Regex α
   | mul : Regex α → Regex α → Regex α
   | star : Regex α → Regex α
+  | lazy_star : Regex α → Regex α
   deriving Repr
 
 namespace Regex
@@ -22,6 +23,7 @@ def size : Regex α → Nat
   | plus r₁ r₂ => 1 + r₁.size + r₂.size
   | mul r₁ r₂ => 1 + r₁.size + r₂.size
   | star r => 1 + r.size
+  | lazy_star r => 1 + r.size
 
 @[simp]
 def left : Regex α → Regex α
@@ -30,6 +32,7 @@ def left : Regex α → Regex α
   | plus r₁ r₂ => plus r₁ r₂
   | mul r₁ _ => r₁
   | star r => star r
+  | lazy_star r => lazy_star r
 
 def reverse : Regex α → Regex α
   | epsilon => epsilon
@@ -37,6 +40,7 @@ def reverse : Regex α → Regex α
   | plus r₁ r₂ => plus r₂.reverse r₁.reverse
   | mul r₁ r₂ => mul r₂.reverse r₁.reverse
   | star r => star r.reverse
+  | lazy_star r => lazy_star r.reverse
 
 /-! ### Derivatives -/
 
@@ -47,6 +51,7 @@ def nullable : Regex α → Bool
   | plus r₁ r₂ => r₁.nullable || r₂.nullable
   | mul r₁ r₂ => r₁.nullable && r₂.nullable
   | star _ => true
+  | lazy_star _ => true
 
 @[simp]
 def highNullable : Regex α → Bool
@@ -55,6 +60,7 @@ def highNullable : Regex α → Bool
   | plus r₁ _ => r₁.highNullable
   | mul r₁ r₂ => r₁.highNullable && r₂.highNullable
   | star _ => false
+  | lazy_star _ => true
 
 theorem highNullable_nullable {r : Regex α} :
   r.highNullable → r.nullable := by
@@ -73,6 +79,7 @@ theorem highNullable_nullable {r : Regex α} :
     apply ih₂ at h₂
     exact ⟨h₁, h₂⟩
   | star => simp
+  | lazy_star => simp
 
  @[simp]
 def prune : Regex α → Regex α
@@ -98,7 +105,12 @@ def prune : Regex α → Regex α
               else plus (r₁₁.mul r₂).prune (r₁₂.mul r₂).prune
         | mul r₁₁ r₁₂ => (mul r₁₁ (r₁₂.mul r₂)).prune
         | star r => mul r.star r₂.prune
+        | lazy_star r =>
+          if r₂.nullable
+            then r₂.prune
+            else mul r.lazy_star r₂.prune
   | star r => r.star
+  | lazy_star _ => epsilon
 termination_by r => (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
@@ -115,6 +127,7 @@ theorem prune_highNullable {r : Regex α} (hn : r.highNullable) :
     rw [prune.eq_def]
     simp [hn]
   | star r => simp at hn
+  | lazy_star r => simp
 
 variable {σ : Type u} [EffectiveBooleanAlgebra α σ]
 
@@ -128,7 +141,9 @@ def deriv : Regex α → σ → Regex α
   | mul (plus r₁₁ r₁₂) r₂, c => plus ((r₁₁.mul r₂).deriv c) ((r₁₂.mul r₂).deriv c)
   | mul (mul r₁₁ r₁₂) r₂, c => (r₁₁.mul (r₁₂.mul r₂)).deriv c
   | mul (star r) r₂, c => plus ((r.deriv c).mul (r.star.mul r₂)) (r₂.deriv c)
+  | mul (lazy_star r) r₂, c => plus (r₂.deriv c) ((r.deriv c).mul (r.lazy_star.mul r₂))
   | star r, c => (r.deriv c).mul r.star
+  | lazy_star r, c => (r.deriv c).mul r.lazy_star
   termination_by r => (r.size, r.left.size)
   decreasing_by all_goals (simp only [left, size]; omega)
 
