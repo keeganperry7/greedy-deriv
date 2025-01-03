@@ -91,3 +91,13 @@ def r12 : Regex (BA Char) := (Regex.plus epsilon 'a').star.mul (Regex.plus (epsi
 def r13 : Regex (BA Char) := (Regex.plus 'a' (Regex.plus epsilon 'b')).star.mul 'b'
 #eval r13.gmatch "bb".toList
 #eval r13.rmatch "bb".toList
+
+-- a*a
+def r14 : Regex (BA Char) := (lazy_star 'a').mul 'a'
+#eval r14.rmatch "aaa".toList
+#eval r14.gmatch "aaa".toList
+
+-- a*b
+def r15 : Regex (BA Char) := (lazy_star 'a').mul 'b'
+#eval r15.rmatch "aab".toList
+#eval r15.gmatch "aab".toList
