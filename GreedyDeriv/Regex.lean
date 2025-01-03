@@ -31,6 +31,13 @@ def left : Regex α → Regex α
   | mul r₁ _ => r₁
   | star r => star r
 
+def reverse : Regex α → Regex α
+  | epsilon => epsilon
+  | pred c => pred c
+  | plus r₁ r₂ => plus r₂.reverse r₁.reverse
+  | mul r₁ r₂ => mul r₂.reverse r₁.reverse
+  | star r => star r.reverse
+
 /-! ### Derivatives -/
 
 @[simp]
