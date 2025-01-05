@@ -259,35 +259,6 @@ theorem accept_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Opt
     simp
     exact Or.inl hk
 
-theorem accept_highNullable {r : Regex α} {s₁ s₂ : List σ} {k : Loc σ → Option (Loc σ)} (hn : r.highNullable) (hk : (k (s₁, s₂)).isSome) :
-  r.accept (s₁, s₂) k = k (s₁, s₂) := by
-  induction r generalizing k with
-  | epsilon => simp [accept]
-  | pred => simp at hn
-  | plus r₁ r₂ ih₁ ih₂ =>
-    simp [accept]
-    simp at hn
-    rw [ih₁, Option.or_of_isSome]
-    exact hk
-    exact hn
-    exact hk
-  | mul r₁ r₂ ih₁ ih₂ =>
-    simp at hn
-    simp [accept]
-    rw [ih₁, ih₂]
-    exact hn.right
-    exact hk
-    exact hn.left
-    apply accept_nullable
-    apply highNullable_nullable
-    exact hn.right
-    exact hk
-  | star r ih => simp at hn
-  | lazy_star r =>
-    rw [accept]
-    rw [Option.or_of_isSome]
-    exact hk
-
 theorem accept_not_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option (Loc σ)) (x : Option (Loc σ)) (hn : ¬r.nullable) :
   r.accept (s₁, s₂) k = r.accept (s₁, s₂) (fun l' => if l'.right.length < s₂.length then k l' else x) :=
   match r with
