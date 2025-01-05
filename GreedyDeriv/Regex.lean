@@ -53,81 +53,32 @@ def nullable : Regex α → Bool
   | star _ => true
   | lazy_star _ => true
 
-@[simp]
-def highNullable : Regex α → Bool
-  | epsilon => true
-  | pred _ => false
-  | plus r₁ _ => r₁.highNullable
-  | mul r₁ r₂ => r₁.highNullable && r₂.highNullable
-  | star _ => false
-  | lazy_star _ => true
-
-theorem highNullable_nullable {r : Regex α} :
-  r.highNullable → r.nullable := by
-  induction r with
-  | epsilon => simp
-  | pred => simp
-  | plus r₁ r₂ ih₁ _ =>
-    simp
-    intro h
-    apply ih₁ at h
-    exact Or.inl h
-  | mul r₁ r₂ ih₁ ih₂ =>
-    simp
-    intro h₁ h₂
-    apply ih₁ at h₁
-    apply ih₂ at h₂
-    exact ⟨h₁, h₂⟩
-  | star => simp
-  | lazy_star => simp
-
  @[simp]
 def prune : Regex α → Regex α
   | epsilon => epsilon
   | pred c => pred c
   | plus r₁ r₂ =>
-    if r₁.highNullable
-      then epsilon
-    else if r₁.nullable
+    if r₁.nullable
       then r₁.prune
       else plus r₁.prune r₂.prune
   | mul r₁ r₂ =>
-    if r₁.highNullable ∧ r₂.highNullable
-      then epsilon
-      else match r₁ with
-        | epsilon => r₂.prune
-        | pred c => mul (pred c) r₂
-        | plus r₁₁ r₁₂ =>
-          if (r₁₁.mul r₂).highNullable
-            then epsilon
-            else if (r₁₁.mul r₂).nullable
-              then (r₁₁.mul r₂).prune
-              else plus (r₁₁.mul r₂).prune (r₁₂.mul r₂).prune
-        | mul r₁₁ r₁₂ => (mul r₁₁ (r₁₂.mul r₂)).prune
-        | star r => mul r.star r₂.prune
-        | lazy_star r =>
-          if r₂.nullable
-            then r₂.prune
-            else mul r.lazy_star r₂.prune
+    match r₁ with
+      | epsilon => r₂.prune
+      | pred c => mul (pred c) r₂
+      | plus r₁₁ r₁₂ =>
+        if (r₁₁.mul r₂).nullable
+          then (r₁₁.mul r₂).prune
+          else plus (r₁₁.mul r₂).prune (r₁₂.mul r₂).prune
+      | mul r₁₁ r₁₂ => (mul r₁₁ (r₁₂.mul r₂)).prune
+      | star r => mul r.star r₂.prune
+      | lazy_star r =>
+        if r₂.nullable
+          then r₂.prune
+          else mul r.lazy_star r₂.prune
   | star r => r.star
   | lazy_star _ => epsilon
 termination_by r => (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
-
-theorem prune_highNullable {r : Regex α} (hn : r.highNullable) :
-  r.prune = epsilon := by
-  induction r with
-  | epsilon => simp
-  | pred => simp at hn
-  | plus r₁ r₂ =>
-    simp at hn
-    simp [prune, hn]
-  | mul r₁ r₂ =>
-    simp at hn
-    rw [prune.eq_def]
-    simp [hn]
-  | star r => simp at hn
-  | lazy_star r => simp
 
 variable {σ : Type u} [EffectiveBooleanAlgebra α σ]
 
