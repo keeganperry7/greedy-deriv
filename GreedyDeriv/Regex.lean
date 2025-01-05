@@ -61,20 +61,18 @@ def prune : Regex α → Regex α
     if r₁.nullable
       then r₁.prune
       else plus r₁.prune r₂.prune
-  | mul r₁ r₂ =>
-    match r₁ with
-      | epsilon => r₂.prune
-      | pred c => mul (pred c) r₂
-      | plus r₁₁ r₁₂ =>
-        if (r₁₁.mul r₂).nullable
-          then (r₁₁.mul r₂).prune
-          else plus (r₁₁.mul r₂).prune (r₁₂.mul r₂).prune
-      | mul r₁₁ r₁₂ => (mul r₁₁ (r₁₂.mul r₂)).prune
-      | star r => mul r.star r₂.prune
-      | lazy_star r =>
-        if r₂.nullable
-          then r₂.prune
-          else mul r.lazy_star r₂.prune
+  | mul epsilon r₂ => r₂.prune
+  | mul (pred c) r₂ => mul (pred c) r₂
+  | mul (plus r₁₁ r₁₂) r₂ =>
+    if (r₁₁.mul r₂).nullable
+      then (r₁₁.mul r₂).prune
+      else plus (r₁₁.mul r₂).prune (r₁₂.mul r₂).prune
+  | mul (mul r₁₁ r₁₂) r₂ => (mul r₁₁ (r₁₂.mul r₂)).prune
+  | mul (star r) r₂ => mul r.star r₂.prune
+  | mul (lazy_star r) r₂ =>
+    if r₂.nullable
+      then r₂.prune
+      else mul r.lazy_star r₂.prune
   | star r => r.star
   | lazy_star _ => epsilon
 termination_by r => (r.size, r.left.size)
