@@ -1,136 +1,655 @@
 import GreedyDeriv.Regex
 import Mathlib.Tactic
 
-variable {α : Type u}
+variable {α σ : Type u} [EffectiveBooleanAlgebra α σ]
 
-inductive Greedy : Regex α → Loc α → Prop
-  | one (s : List α) :
-    Greedy .one ⟨[], s⟩
-  | char (c : α) (s : List α) :
-    Greedy (.char c) ⟨[c], s⟩
-  | plus_left (r₁ r₂ : Regex α) (loc : Loc α) :
-    Greedy r₁ loc →
-    Greedy (r₁.plus r₂) loc
-  | plus_right (r₁ r₂ : Regex α) (loc : Loc α) :
-    ¬(∃ s₃ s₄, s₃ ++ s₄ = loc.word ∧ r₁.matches' s₃) →
-    Greedy r₂ loc →
-    Greedy (r₁.plus r₂) loc
-  | mul (r₁ r₂ : Regex α) (s₁ s₂ s₃ : List α) :
-    Greedy r₁ ⟨s₁.reverse, s₂ ++ s₃⟩ →
-    Greedy r₂ ⟨s₂.reverse, s₃⟩ →
-    Greedy (r₁.mul r₂) ⟨s₂.reverse ++ s₁.reverse, s₃⟩
-  | star (r : Regex α) (s : Loc α) :
-    Greedy ((r.mul r.star).plus Regex.one) s →
-    Greedy r.star s
+open Regex
 
-theorem correctness (r : Regex α) (l : Loc α) :
-  Greedy r l → r.matches' l.left.reverse := by
+def Regex.accept : Regex α → Loc σ → (Loc σ → Option (Loc σ)) → Option (Loc σ)
+  | epsilon, loc, k => k loc
+  | pred _, (_, []), _ => none
+  | pred c, (u, d::v), k => if denote c d then k (d::u, v) else none
+  | plus r₁ r₂, loc, k => (r₁.accept loc k).or (r₂.accept loc k)
+  | mul r₁ r₂, loc, k => r₁.accept loc (fun loc' => r₂.accept loc' k)
+  | star r, loc, k => (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then r.star.accept loc' k else none)).or (k loc)
+  | lazy_star r, loc, k => (k loc).or (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then r.lazy_star.accept loc' k else none))
+termination_by r loc => (r.size, loc.right.length)
+
+def Regex.gmatch : Regex α → List σ → Option (Loc σ)
+  | r, s => r.accept ([], s) some
+
+theorem accept_mul_def (r₁ r₂ : Regex α) (loc : Loc σ) (k : Loc σ → Option (Loc σ)) :
+  (r₁.mul r₂).accept loc k = (r₁.accept loc (fun loc' => r₂.accept loc' k)) := by
+  rw [accept]
+
+theorem accept_star_def (r : Regex α) (loc : Loc σ) (k : Loc σ → Option (Loc σ)) :
+  r.star.accept loc k = (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then r.star.accept loc' k else none)).or (k loc) := by
+  rw [accept]
+
+@[simp]
+theorem accept_bot (loc : Loc σ) (k : Loc σ → Option (Loc σ)) :
+  (@pred α ⊥).accept loc k = none := by
+  match loc with
+  | ⟨_, []⟩ => simp [accept]
+  | ⟨_, x::xs⟩ => simp [accept]
+
+theorem Option.or_eq {α : Type u} {o o' u u' : Option α} :
+  o = u →
+  o' = u' →
+  o.or o' = u.or u' := by
+  intro h h'
+  rw [h, h']
+
+theorem fn_arg₃_eq {α β γ δ : Type u} {f : α → β → γ → δ} {a : α} {b : β} {c c' : γ} :
+  c = c' →
+  f a b c = f a b c' := by
   intro h
-  induction h with
-  | one =>
-    simp
-    apply Regex.matches'.one
-  | char c =>
-    simp
-    apply Regex.matches'.char
-  | plus_left r₁ r₂ loc _ ih =>
-    apply Regex.matches'.plus_left
-    exact ih
-  | plus_right r₁ r₂ loc _ _ ih =>
-    apply Regex.matches'.plus_right
-    exact ih
-  | mul r₁ r₂ s₁ s₂ s₃ h₁ h₂ ih₁ ih₂ =>
-    apply Regex.matches'.mul
-    simp [h₁, h₂] at ih₁ ih₂
-    exact ih₁
-    exact ih₂
-    simp
-  | star r s _ ih =>
-    generalize hs' : s.left.reverse = s'
-    rw [hs'] at ih
-    cases ih with
-    | plus_left ih =>
-      cases ih with
-      | mul h₁ h₂ hs' =>
-        apply Regex.matches'.star
-        exact h₁
-        exact h₂
-        exact hs'
-    | plus_right ih =>
-      cases ih
-      apply Regex.matches'.star_nil
+  rw [h]
 
-theorem uniqueness (r : Regex α) (l₁ l₂ : Loc α) (hl : l₁.word = l₂.word) :
-  Greedy r l₁ ∧ Greedy r l₂ → l₁ = l₂ := by
-  intro ⟨h₁, h₂⟩
-  induction h₁ generalizing l₂ with
-  | one =>
-    cases h₂
-    simp_all
-  | char =>
-    cases h₂
-    simp_all
-  | plus_left r₁ r₂ loc h₁ ih₁ =>
-    cases h₂ with
-    | plus_left =>
-      apply ih₁ at hl
+theorem iff_eq_of_eq {α : Type u} {a b c : α} :
+  a = b →
+  (a = c ↔ b = c) := by
+  intro h
+  rw [h]
+
+theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Option (Loc σ)) :
+  r.accept (s₁, s₂) k = r.accept (s₁, s₂) (fun l' => if l'.right.length ≤ s₂.length then k l' else x) :=
+  match r with
+  | epsilon => by
+    simp [accept]
+  | pred c => by
+    cases s₂ with
+    | nil => simp [accept]
+    | cons x xs => simp [accept]
+  | plus r₁ r₂ => by
+    simp [accept]
+    rw [accept_suffix r₁, accept_suffix r₂]
+    rfl
+  | mul r₁ r₂ => by
+    match r₁ with
+    | epsilon =>
+      simp [accept]
+      rw [accept_suffix r₂ _ x]
+      rfl
+    | pred c =>
+      cases s₂ with
+      | nil => simp [accept]
+      | cons y ys =>
+        simp [accept]
+        split_ifs with hc
+        · rw [accept_suffix r₂ _ x]
+          nth_rw 2 [accept_suffix r₂ _ x]
+          simp
+          apply fn_arg₃_eq
+          ext l t
+          split_ifs with hl hl'
+          · rfl
+          · absurd hl'
+            apply Nat.le_succ_of_le
+            exact hl
+          · rfl
+        · rfl
+    | plus r₁₁ r₁₂ =>
+      simp [accept]
+      repeat rw [←accept_mul_def]
+      rw [accept_suffix (r₁₁.mul r₂) _ x]
+      rw [accept_suffix (r₁₂.mul r₂) _ x]
+      rfl
+    | mul r₁₁ r₁₂ =>
+      simp [accept]
+      simp_rw [←accept_mul_def r₁₂ r₂]
+      repeat rw [←accept_mul_def]
+      rw [accept_suffix (r₁₁.mul (r₁₂.mul r₂)) _ x]
+      rfl
+    | .star r =>
+      rw [accept, accept, accept, accept]
+      simp
+      rw [accept_suffix r₂ _ x]
+      simp
+      apply Option.or_eq
+      apply fn_arg₃_eq
+      ext loc' t
+      split_ifs with hl
+      · rw [accept_suffix r.star _ x]
+        nth_rw 2 [accept_suffix r.star _ x]
+        simp
+        apply iff_eq_of_eq
+        apply fn_arg₃_eq
+        ext l u
+        split_ifs with h₁
+        · simp
+          apply iff_eq_of_eq
+          rw [accept_suffix r₂ _ x]
+          nth_rw 2 [accept_suffix r₂ _ x]
+          apply fn_arg₃_eq
+          ext l' v
+          split_ifs with h₂ h₃
+          · rfl
+          · absurd h₃
+            apply Nat.le_trans
+            exact h₂
+            apply Nat.le_trans
+            exact h₁
+            exact Nat.le_of_lt hl
+          · rfl
+        · rfl
+      · rfl
+      rfl
+    | lazy_star r =>
+      rw [accept, accept, accept, accept]
+      simp
+      rw [accept_suffix r₂ _ x]
+      simp
+      apply Option.or_eq
+      rfl
+      apply fn_arg₃_eq
+      ext loc' t
+      split_ifs with hl
+      · rw [accept_suffix r.lazy_star _ x]
+        nth_rw 2 [accept_suffix r.lazy_star _ x]
+        simp
+        apply iff_eq_of_eq
+        apply fn_arg₃_eq
+        ext l u
+        split_ifs with h₁
+        · simp
+          apply iff_eq_of_eq
+          rw [accept_suffix r₂ _ x]
+          nth_rw 2 [accept_suffix r₂ _ x]
+          apply fn_arg₃_eq
+          ext l' v
+          split_ifs with h₂ h₃
+          · rfl
+          · absurd h₃
+            apply Nat.le_trans
+            exact h₂
+            apply Nat.le_trans
+            exact h₁
+            exact Nat.le_of_lt hl
+          · rfl
+        · rfl
+      · rfl
+  | .star r => by
+    rw [accept, accept]
+    simp
+    apply Option.or_eq
+    apply fn_arg₃_eq
+    ext loc' t
+    split_ifs with hl
+    · rw [accept_suffix r.star _ x]
+      nth_rw 2 [accept_suffix r.star _ x]
+      simp
+      apply iff_eq_of_eq
+      apply fn_arg₃_eq
+      ext l u
+      split_ifs with h₁ h₂
+      · rfl
+      · absurd h₂
+        apply Nat.le_trans
+        exact h₁
+        exact Nat.le_of_lt hl
+      · rfl
+    · rfl
+    rfl
+  | lazy_star r => by
+    rw [accept, accept]
+    simp
+    apply Option.or_eq
+    rfl
+    apply fn_arg₃_eq
+    ext loc' t
+    split_ifs with hl
+    · rw [accept_suffix r.lazy_star _ x]
+      nth_rw 2 [accept_suffix r.lazy_star _ x]
+      simp
+      apply iff_eq_of_eq
+      apply fn_arg₃_eq
+      ext l u
+      split_ifs with h₁ h₂
+      · rfl
+      · absurd h₂
+        apply Nat.le_trans
+        exact h₁
+        exact Nat.le_of_lt hl
+      · rfl
+    · rfl
+termination_by (s₂.length, r.size, r.left.size)
+decreasing_by
+  any_goals decreasing_tactic
+  · simp only [size, left]
+    apply Prod.Lex.right
+    omega
+
+theorem accept_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option (Loc σ)) (hn : r.nullable) (hk : (k (s₁, s₂)).isSome) :
+  (r.accept (s₁, s₂) k).isSome := by
+  induction r generalizing s₁ s₂ k with
+  | epsilon =>
+    simp [accept]
+    exact hk
+  | pred c => simp at hn
+  | plus r₁ r₂ ih₁ ih₂ =>
+    simp at hn
+    cases hn with
+    | inl hn =>
+      simp [accept]
+      left
+      apply ih₁
+      exact hn
+      exact hk
+    | inr hn =>
+      simp [accept]
+      right
+      apply ih₂
+      exact hn
+      exact hk
+  | mul r₁ r₂ ih₁ ih₂ =>
+    simp at hn
+    simp [accept]
+    apply ih₁
+    exact hn.left
+    apply ih₂
+    exact hn.right
+    exact hk
+  | star r _ =>
+    rw [accept]
+    simp
+    exact Or.inr hk
+  | lazy_star r =>
+    rw [accept]
+    simp
+    exact Or.inl hk
+
+theorem accept_highNullable {r : Regex α} {s₁ s₂ : List σ} {k : Loc σ → Option (Loc σ)} (hn : r.highNullable) (hk : (k (s₁, s₂)).isSome) :
+  r.accept (s₁, s₂) k = k (s₁, s₂) := by
+  induction r generalizing k with
+  | epsilon => simp [accept]
+  | pred => simp at hn
+  | plus r₁ r₂ ih₁ ih₂ =>
+    simp [accept]
+    simp at hn
+    rw [ih₁, Option.or_of_isSome]
+    exact hk
+    exact hn
+    exact hk
+  | mul r₁ r₂ ih₁ ih₂ =>
+    simp at hn
+    simp [accept]
+    rw [ih₁, ih₂]
+    exact hn.right
+    exact hk
+    exact hn.left
+    apply accept_nullable
+    apply highNullable_nullable
+    exact hn.right
+    exact hk
+  | star r ih => simp at hn
+  | lazy_star r =>
+    rw [accept]
+    rw [Option.or_of_isSome]
+    exact hk
+
+theorem accept_not_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option (Loc σ)) (x : Option (Loc σ)) (hn : ¬r.nullable) :
+  r.accept (s₁, s₂) k = r.accept (s₁, s₂) (fun l' => if l'.right.length < s₂.length then k l' else x) :=
+  match r with
+  | epsilon => by simp at hn
+  | pred c => by
+    cases s₂ with
+    | nil => simp [accept]
+    | cons x xs => simp [accept]
+  | plus r₁ r₂ => by
+    simp at hn
+    simp [accept]
+    rw [accept_not_nullable r₁ _ _ _ x]
+    rw [accept_not_nullable r₂ _ _ _ x]
+    rfl
+    simp [hn.right]
+    simp [hn.left]
+  | mul r₁ r₂ => by
+    match r₁ with
+    | epsilon =>
+      simp at hn
+      simp [accept]
+      rw [accept_not_nullable r₂ _ _ _ x]
+      rfl
+      simp [hn]
+    | pred c =>
+      cases s₂ with
+      | nil => simp [accept]
+      | cons y ys =>
+        simp [accept]
+        split_ifs with hc
+        · simp_rw [Nat.lt_succ]
+          rw [accept_suffix _ _ x]
+          simp
+        · rfl
+    | plus r₁₁ r₁₂ =>
+      simp at hn
+      simp [accept]
+      repeat rw [←accept_mul_def]
+      rw [accept_not_nullable (r₁₁.mul r₂) _ _ k x]
+      rw [accept_not_nullable (r₁₂.mul r₂) _ _ k x]
+      rfl
+      · simp
+        intro h
+        apply hn
+        exact Or.inr h
+      · simp
+        intro h
+        apply hn
+        exact Or.inl h
+    | mul r₁₁ r₁₂ =>
+      simp [accept]
+      simp_rw [←accept_mul_def]
+      apply accept_not_nullable (r₁₁.mul (r₁₂.mul r₂))
+      simp at hn
+      simp
+      exact hn
+    | .star r =>
+      simp at hn
+      rw [accept, accept, accept, accept]
+      simp
+      rw [accept_not_nullable r₂ _ _ k x]
+      simp
+      apply Option.or_eq
+      apply fn_arg₃_eq
+      ext loc' t
+      split_ifs with hl
+      · rw [accept_suffix r.star _ x]
+        nth_rw 2 [accept_suffix r.star _ x]
+        simp
+        apply iff_eq_of_eq
+        apply fn_arg₃_eq
+        ext l u
+        split_ifs with h₁
+        · rw [accept_suffix r₂ _ x]
+          nth_rw 2 [accept_suffix r₂ _ x]
+          simp
+          apply iff_eq_of_eq
+          apply fn_arg₃_eq
+          ext l' v
+          split_ifs with h₂ h₃
+          · rfl
+          · absurd h₃
+            apply Nat.lt_of_le_of_lt
+            exact h₂
+            apply Nat.lt_of_le_of_lt
+            exact h₁
+            exact hl
+          · rfl
+        · rfl
+      · rfl
+      rfl
+      simp [hn]
+    | lazy_star r =>
+      simp at hn
+      rw [accept, accept, accept, accept]
+      simp
+      rw [accept_not_nullable r₂ _ _ k x]
+      simp
+      apply Option.or_eq
+      rfl
+      apply fn_arg₃_eq
+      ext loc' t
+      split_ifs with hl
+      · rw [accept_suffix r.lazy_star _ x]
+        nth_rw 2 [accept_suffix r.lazy_star _ x]
+        simp
+        apply iff_eq_of_eq
+        apply fn_arg₃_eq
+        ext l u
+        split_ifs with h₁
+        · rw [accept_suffix r₂ _ x]
+          nth_rw 2 [accept_suffix r₂ _ x]
+          simp
+          apply iff_eq_of_eq
+          apply fn_arg₃_eq
+          ext l' v
+          split_ifs with h₂ h₃
+          · rfl
+          · absurd h₃
+            apply Nat.lt_of_le_of_lt
+            exact h₂
+            apply Nat.lt_of_le_of_lt
+            exact h₁
+            exact hl
+          · rfl
+        · rfl
+      · rfl
+      simp [hn]
+  | .star r => by simp at hn
+  | lazy_star r => by simp at hn
+termination_by (r.size, r.left.size)
+decreasing_by all_goals (simp only [left, size]; omega)
+
+theorem accept_cont_none (r : Regex α) (s₁ s₂ : List σ) :
+  r.accept (s₁, s₂) (fun _ ↦ none) = none :=
+  match r with
+  | epsilon => by simp [accept]
+  | pred c => by
+    cases s₂ with
+    | nil => simp [accept]
+    | cons x xs => simp [accept]
+  | plus r₁ r₂ => by
+    simp [accept]
+    rw [accept_cont_none, accept_cont_none]
+    simp
+  | mul r₁ r₂ => by
+    match r₁ with
+    | epsilon =>
+      simp [accept]
+      rw [accept_cont_none]
+    | pred c =>
+      cases s₂ with
+      | nil => simp [accept]
+      | cons x xs =>
+        simp [accept]
+        rw [accept_cont_none]
+        simp
+    | plus r₁₁ r₁₂ =>
+      simp [accept]
+      rw [←accept_mul_def, ←accept_mul_def]
+      rw [accept_cont_none, accept_cont_none]
+      simp
+    | mul r₁₁ r₁₂ =>
+      simp [accept]
+      simp_rw [←accept_mul_def]
+      rw [accept_cont_none]
+    | .star r =>
+      rw [accept, accept_suffix r.star _ none]
+
+      have hr₂_none :
+        (fun l' ↦ if l'.right.length ≤ s₂.length then r₂.accept l' fun l' ↦ none else none) =
+        (fun l' ↦ none) := by
+        ext l t
+        split_ifs with hl
+        · rw [accept_cont_none]
+        · rfl
+
+      rw [hr₂_none, accept_cont_none]
+    | lazy_star r =>
+      rw [accept, accept_suffix r.lazy_star _ none]
+
+      have hr₂_none :
+        (fun l' ↦ if l'.right.length ≤ s₂.length then r₂.accept l' fun l' ↦ none else none) =
+        (fun l' ↦ none) := by
+        ext l t
+        split_ifs with hl
+        · rw [accept_cont_none]
+        · rfl
+
+      rw [hr₂_none, accept_cont_none]
+  | .star r => by
+    rw [accept]
+    simp
+
+    have star_none :
+      (fun loc' ↦ if loc'.2.length < s₂.length then r.star.accept loc' fun l' ↦ none else none) =
+      (fun loc' ↦ none) := by
+      ext l t
+      split_ifs with hl
+      · rw [accept_cont_none]
+      · rfl
+
+    rw [star_none, accept_cont_none]
+  | lazy_star r => by
+    rw [accept]
+    simp
+
+    have lazy_star_none :
+      (fun loc' ↦ if loc'.2.length < s₂.length then r.lazy_star.accept loc' fun l' ↦ none else none) =
+      (fun loc' ↦ none) := by
+      ext l t
+      split_ifs with hl
+      · rw [accept_cont_none]
+      · rfl
+
+    rw [lazy_star_none, accept_cont_none]
+termination_by (s₂.length, r.size, r.left.size)
+decreasing_by
+  any_goals decreasing_tactic
+  · apply Prod.Lex.right
+    apply Prod.Lex.right' <;> (simp; omega)
+  · apply Prod.Lex.right'
+    exact hl
+    apply Prod.Lex.left
+    simp
+  · apply Prod.Lex.right'
+    exact hl
+    apply Prod.Lex.left
+    simp
+
+theorem accept_nil_not_nullable {r : Regex α} {s : List σ} {k : Loc σ → Option (Loc σ)} (hr : ¬r.nullable) :
+  r.accept (s, []) k = none :=
+  match r with
+  | epsilon => by simp at hr
+  | pred c => by simp [accept]
+  | plus r₁ r₂ => by
+    simp at hr
+    simp [accept]
+    rw [accept_nil_not_nullable, accept_nil_not_nullable]
+    simp
+    simp [hr.right]
+    simp [hr.left]
+  | mul r₁ r₂ => by
+    match r₁ with
+    | epsilon =>
+      simp [accept]
+      simp at hr
+      rw [accept_nil_not_nullable]
+      simp [hr]
+    | pred c => simp [accept]
+    | plus r₁₁ r₁₂ =>
+      simp [accept]
+      rw [←accept_mul_def, ←accept_mul_def]
+      rw [accept_nil_not_nullable, accept_nil_not_nullable]
+      simp
       simp_all
-    | plus_right _ _ _ hn =>
-      absurd hn
-      apply correctness at h₁
-      use loc.left.reverse
-      use loc.right
       simp_all
-  | plus_right r₁ r₂ loc hn h ih =>
-    cases h₂ with
-    | plus_left _ _ _ h' =>
-      apply correctness at h'
-      absurd hn
-      use l₂.left.reverse
-      use l₂.right
-      simp_all
-    | plus_right =>
-      apply ih at hl
-      simp_all
-  | mul r₁ r₂ s₁ s₂ s₃ h h' ih ih'  =>
-    cases h₂ with
-    | mul _ _ s₁' s₂' s₃' k k' =>
-      cases r₁ with
-      | zero => cases k
-      | one =>
-        generalize hh : s₁.reverse = t₁
-        generalize hk : s₁'.reverse = t₁'
-        rw [hh] at h
-        rw [hk] at k
-        cases h
-        cases k
-        simp at hh hk
-        simp [hh, hk] at hl
-        have ih' := ih' (s₂'.reverse, s₃')
-        simp [hl] at ih'
-        apply ih' at k'
-        simp_all
-      | char c =>
-        generalize hh : s₁.reverse = t₁
-        generalize hk : s₁'.reverse = t₁'
-        rw [hh] at h
-        rw [hk] at k
-        cases h
-        cases k
-        simp at hh hk
-        simp [hh, hk] at hl
-        have ih' := ih' (s₂'.reverse, s₃')
-        simp [hl] at ih'
-        apply ih' at k'
-        simp_all
-      | plus =>
-        sorry
-      | mul => sorry
-      | star =>
-        sorry
-  | star r s h₁ ih =>
-    cases h₂ with
-    | star _ _ h₂ =>
-      apply ih at hl
-      apply hl at h₂
-      exact h₂
+    | mul r₁₁ r₁₂ =>
+      simp [accept]
+      simp_rw [←accept_mul_def]
+      rw [accept_nil_not_nullable]
+      simp at *
+      tauto
+    | .star r =>
+      rw [accept, accept]
+      simp at *
+      rw [@accept_nil_not_nullable r₂, accept_cont_none]
+      simp
+      simp [hr]
+    | lazy_star r =>
+      rw [accept, accept]
+      simp at *
+      rw [@accept_nil_not_nullable r₂, accept_cont_none]
+      simp
+      simp [hr]
+  | .star _ => by simp at hr
+  | lazy_star _ => by simp at hr
+termination_by (r.size, r.left.size)
+decreasing_by all_goals (simp only [left, size]; omega)
+
+theorem accept_nil_nullable {r : Regex α} {s : List σ} {k : Loc σ → Option (Loc σ)} (hr : r.nullable) :
+  r.accept (s, []) k = k (s, []) :=
+  match r with
+  | epsilon => by simp [accept]
+  | pred _ => by simp at hr
+  | plus r₁ r₂ => by
+    simp at hr
+    simp [accept]
+    cases hr with
+    | inl hr =>
+      rw [accept_nil_nullable hr]
+      by_cases hr₂ : r₂.nullable
+      · rw [accept_nil_nullable hr₂]
+        simp
+      · rw [accept_nil_not_nullable hr₂]
+        simp
+    | inr hr =>
+      rw [accept_nil_nullable hr]
+      by_cases hr₁ : r₁.nullable
+      · rw [accept_nil_nullable hr₁]
+        simp
+      · rw [accept_nil_not_nullable hr₁]
+        simp
+  | mul r₁ r₂ => by
+    match r₁ with
+    | epsilon =>
+      simp at hr
+      simp [accept]
+      rw [accept_nil_nullable hr]
+    | pred c => simp at hr
+    | plus r₁₁ r₁₂ =>
+      simp at hr
+      simp [accept]
+      repeat rw [←accept_mul_def]
+      let ⟨hr₁, hr₂⟩ := hr
+      clear hr
+      cases hr₁ with
+      | inl hr₁ =>
+        rw [accept_nil_nullable]
+        by_cases hr₁₂ : r₁₂.nullable
+        · rw [accept_nil_nullable]
+          simp
+          simp [hr₁₂, hr₂]
+        · rw [accept_nil_not_nullable]
+          simp
+          simp [hr₁₂]
+        simp [hr₁, hr₂]
+      | inr hr₁ =>
+        nth_rw 2 [accept_nil_nullable]
+        by_cases hr₁₁ : r₁₁.nullable
+        · rw [accept_nil_nullable]
+          simp
+          simp [hr₁₁, hr₂]
+        · rw [accept_nil_not_nullable]
+          simp
+          simp [hr₁₁]
+        simp [hr₁, hr₂]
+    | mul r₁₁ r₁₂ =>
+      simp [accept]
+      simp_rw [←accept_mul_def]
+      rw [accept_nil_nullable]
+      simp at hr
+      simp [hr]
+    | .star r =>
+      simp at hr
+      rw [accept, accept_nil_nullable, accept_nil_nullable]
+      exact hr
+      simp
+    | lazy_star r =>
+      simp at hr
+      rw [accept, accept_nil_nullable, accept_nil_nullable]
+      exact hr
+      simp
+  | .star r => by
+    rw [accept]
+    simp
+    rw [accept_cont_none]
+    simp
+  | lazy_star r => by
+    rw [accept]
+    simp
+    rw [accept_cont_none]
+    simp
+termination_by (r.size, r.left.size)
+decreasing_by all_goals (simp only [left, size]; omega)

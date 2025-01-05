@@ -1,15 +1,15 @@
 import GreedyDeriv.Locations
+import GreedyDeriv.EffectiveBooleanAlgebra
 import Mathlib.Tactic.SplitIfs
 import Mathlib.Tactic.ApplyAt
--- import Mathlib
 
 inductive Regex (α :  Type u) : Type u where
-  | zero : Regex α
-  | one : Regex α
-  | char : α → Regex α
+  | epsilon : Regex α
+  | pred : α → Regex α
   | plus : Regex α → Regex α → Regex α
   | mul : Regex α → Regex α → Regex α
   | star : Regex α → Regex α
+  | lazy_star : Regex α → Regex α
   deriving Repr
 
 namespace Regex
@@ -18,90 +18,55 @@ variable {α : Type u}
 
 @[simp]
 def size : Regex α → Nat
-  | zero => 1
-  | one => 1
-  | char _ => 1
+  | epsilon => 1
+  | pred _ => 1
   | plus r₁ r₂ => 1 + r₁.size + r₂.size
   | mul r₁ r₂ => 1 + r₁.size + r₂.size
   | star r => 1 + r.size
+  | lazy_star r => 1 + r.size
 
-inductive matches' : Regex α → List α → Prop where
-  | one : matches' one []
-  | char (c : α) : matches' (char c) [c]
-  | plus_left {r₁ r₂ : Regex α} {s : List α} :
-    r₁.matches' s →
-    (r₁.plus r₂).matches' s
-  | plus_right {r₁ r₂ : Regex α} {s : List α} :
-    r₂.matches' s →
-    (r₁.plus r₂).matches' s
-  | mul {r₁ r₂ : Regex α} {s₁ s₂ s : List α} :
-    r₁.matches' s₁ →
-    r₂.matches' s₂ →
-    s₁ ++ s₂ = s →
-    (r₁.mul r₂).matches' s
-  | star_nil {r : Regex α} :
-    r.star.matches' []
-  | star {r : Regex α} {s₁ s₂ s : List α} :
-    r.matches' s₁ →
-    r.star.matches' s₂ →
-    s₁ ++ s₂ = s →
-    r.star.matches' s
+@[simp]
+def left : Regex α → Regex α
+  | epsilon => epsilon
+  | pred c => pred c
+  | plus r₁ r₂ => plus r₁ r₂
+  | mul r₁ _ => r₁
+  | star r => star r
+  | lazy_star r => lazy_star r
+
+def reverse : Regex α → Regex α
+  | epsilon => epsilon
+  | pred c => pred c
+  | plus r₁ r₂ => plus r₂.reverse r₁.reverse
+  | mul r₁ r₂ => mul r₂.reverse r₁.reverse
+  | star r => star r.reverse
+  | lazy_star r => lazy_star r.reverse
 
 /-! ### Derivatives -/
 
-variable [DecidableEq α]
-
 @[simp]
 def nullable : Regex α → Bool
-  | zero => false
-  | one => true
-  | char _ => false
+  | epsilon => true
+  | pred _ => false
   | plus r₁ r₂ => r₁.nullable || r₂.nullable
   | mul r₁ r₂ => r₁.nullable && r₂.nullable
   | star _ => true
-
-theorem nullable_matches' {α : Type u} {r : Regex α} :
-  r.nullable → r.matches' [] := by
-  intro h
-  induction r with
-  | zero => simp at h
-  | one => apply matches'.one
-  | char => simp at h
-  | plus r₁ r₂ ih₁ ih₂ =>
-    simp at h
-    cases h with
-    | inl h =>
-      apply ih₁ at h
-      apply matches'.plus_left
-      exact h
-    | inr h =>
-      apply ih₂ at h
-      apply matches'.plus_right
-      exact h
-  | mul r₁ r₂ ih₁ ih₂ =>
-    simp at h
-    simp [h] at ih₁ ih₂
-    apply matches'.mul
-    exact ih₁
-    exact ih₂
-    rfl
-  | star => apply matches'.star_nil
+  | lazy_star _ => true
 
 @[simp]
 def highNullable : Regex α → Bool
-  | zero => false
-  | one => true
-  | char _ => false
+  | epsilon => true
+  | pred _ => false
   | plus r₁ _ => r₁.highNullable
   | mul r₁ r₂ => r₁.highNullable && r₂.highNullable
-  | star r => r.highNullable
+  | star _ => false
+  | lazy_star _ => true
 
-theorem highNullable_nullable {α : Type u} {r : Regex α} :
+theorem highNullable_nullable {r : Regex α} :
   r.highNullable → r.nullable := by
   induction r with
-  | zero => simp
-  | one => simp
-  | char => simp
+  | epsilon => simp
+  | pred => simp
   | plus r₁ r₂ ih₁ _ =>
     simp
     intro h
@@ -114,65 +79,75 @@ theorem highNullable_nullable {α : Type u} {r : Regex α} :
     apply ih₂ at h₂
     exact ⟨h₁, h₂⟩
   | star => simp
+  | lazy_star => simp
 
-@[simp]
-def deriv : Regex α → α → Regex α
-  | zero, _ => zero
-  | one, _ => zero
-  | char c, c' => if c = c' then one else zero
-  | plus r₁ r₂, c => (r₁.deriv c).plus (r₂.deriv c)
-  | mul r₁ r₂, c =>
-    if highNullable r₁
-      then (r₂.deriv c).plus ((r₁.deriv c).mul r₂)
-      else if nullable r₁
-        then ((r₁.deriv c).mul r₂).plus (r₂.deriv c)
-        else (r₁.deriv c).mul r₂
-  | star r, c => (r.deriv c).mul r.star
-
-@[simp]
-def prune (r : Regex α) : Regex α :=
-  match r, r.nullable, r.highNullable with
-  | r, false, _ => r
-  | _, true, true => one
-  | mul r₁ r₂, true, false =>
+ @[simp]
+def prune : Regex α → Regex α
+  | epsilon => epsilon
+  | pred c => pred c
+  | plus r₁ r₂ =>
     if r₁.highNullable
-      then r₂.prune
-      else mul r₁ r₂
-  | plus r₁ r₂, true, false =>
-    if r₁.nullable
+      then epsilon
+    else if r₁.nullable
       then r₁.prune
-      else plus r₁ (r₂.prune)
-  | r, true, false => r
+      else plus r₁.prune r₂.prune
+  | mul r₁ r₂ =>
+    if r₁.highNullable ∧ r₂.highNullable
+      then epsilon
+      else match r₁ with
+        | epsilon => r₂.prune
+        | pred c => mul (pred c) r₂
+        | plus r₁₁ r₁₂ =>
+          if (r₁₁.mul r₂).highNullable
+            then epsilon
+            else if (r₁₁.mul r₂).nullable
+              then (r₁₁.mul r₂).prune
+              else plus (r₁₁.mul r₂).prune (r₁₂.mul r₂).prune
+        | mul r₁₁ r₁₂ => (mul r₁₁ (r₁₂.mul r₂)).prune
+        | star r => mul r.star r₂.prune
+        | lazy_star r =>
+          if r₂.nullable
+            then r₂.prune
+            else mul r.lazy_star r₂.prune
+  | star r => r.star
+  | lazy_star _ => epsilon
+termination_by r => (r.size, r.left.size)
+decreasing_by all_goals (simp only [left, size]; omega)
 
-theorem prune_highNullable {α : Type u} {r : Regex α} (h : r.highNullable) :
-  r.prune = one := by
-  unfold prune
-  rw [h, highNullable_nullable h]
-  simp
+theorem prune_highNullable {r : Regex α} (hn : r.highNullable) :
+  r.prune = epsilon := by
+  induction r with
+  | epsilon => simp
+  | pred => simp at hn
+  | plus r₁ r₂ =>
+    simp at hn
+    simp [prune, hn]
+  | mul r₁ r₂ =>
+    simp at hn
+    rw [prune.eq_def]
+    simp [hn]
+  | star r => simp at hn
+  | lazy_star r => simp
 
-theorem prune_not_nullable {α : Type u} (r : Regex α) (hn : ¬r.nullable) :
-  r.prune = r := by
-  rw [prune]
-  simp at hn
-  exact hn
+variable {σ : Type u} [EffectiveBooleanAlgebra α σ]
 
-theorem prune_plus_nullable {α : Type u} {r₁ r₂ : Regex α} (h : (r₁.plus r₂).nullable) (hn : ¬(r₁.plus r₂).highNullable) :
-  r₁.nullable ∧ (r₁.plus r₂).prune = r₁.prune ∨ ¬r₁.nullable ∧ (r₁.plus r₂).prune = r₁.prune.plus (r₂.prune) := by
-  simp_all
-  cases h with
-  | inl h => simp_all
-  | inr h =>
-    by_cases hr : r₁.nullable
-    · simp_all
-    · simp_all
+@[simp]
+def deriv : Regex α → σ → Regex α
+  | epsilon, _ => pred ⊥
+  | pred c, d => if denote c d then epsilon else pred ⊥
+  | plus r₁ r₂, c => (r₁.deriv c).plus (r₂.deriv c)
+  | mul epsilon r₂, c => r₂.deriv c
+  | mul (pred c) r₂, d => if denote c d then r₂ else pred ⊥
+  | mul (plus r₁₁ r₁₂) r₂, c => plus ((r₁₁.mul r₂).deriv c) ((r₁₂.mul r₂).deriv c)
+  | mul (mul r₁₁ r₁₂) r₂, c => (r₁₁.mul (r₁₂.mul r₂)).deriv c
+  | mul (star r) r₂, c => plus ((r.deriv c).mul (r.star.mul r₂)) (r₂.deriv c)
+  | mul (lazy_star r) r₂, c => plus (r₂.deriv c) ((r.deriv c).mul (r.lazy_star.mul r₂))
+  | star r, c => (r.deriv c).mul r.star
+  | lazy_star r, c => (r.deriv c).mul r.lazy_star
+  termination_by r => (r.size, r.left.size)
+  decreasing_by all_goals (simp only [left, size]; omega)
 
-theorem prune_plus_nullable_highNullable {α : Type u} (r₁ r₂ : Regex α) (hn : (r₁.plus r₂).nullable) (hr : r₁.highNullable) :
-  (r₁.plus r₂).prune = one := by
-  unfold prune
-  rw [hn]
-  simp [hr]
-
-def matchEnd : Regex α → Loc α → Option (Loc α)
+def matchEnd : Regex α → Loc σ → Option (Loc σ)
   | r, (u, []) =>
     if r.nullable
       then some (u, [])
@@ -183,10 +158,10 @@ def matchEnd : Regex α → Loc α → Option (Loc α)
     | some loc => some loc
 termination_by _ loc => loc.right.length
 
-def rmatch : Regex α → List α → Option (Loc α)
+def rmatch : Regex α → List σ → Option (Loc σ)
   | r, s => matchEnd r ([], s)
 
-theorem matchEnd_soundness (r : Regex α) (s₁ s₂ s₁' s₂' : List α) :
+theorem matchEnd_soundness (r : Regex α) (s₁ s₂ s₁' s₂' : List σ) :
   r.matchEnd (s₁, s₂) = some (s₁', s₂') → Loc.word (s₁, s₂) = Loc.word (s₁', s₂') := by
   intro h
   induction s₂ generalizing r s₁ with
@@ -206,7 +181,7 @@ theorem matchEnd_soundness (r : Regex α) (s₁ s₂ s₁' s₂' : List α) :
       rw [←k]
       simp
 
-theorem soundness (r : Regex α) (s : List α) (loc : Loc α) :
+theorem soundness (r : Regex α) (s : List σ) (loc : Loc σ) :
   r.rmatch s = some loc → s = loc.word := by
   intro h
   cases s with

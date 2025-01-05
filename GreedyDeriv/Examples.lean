@@ -1,93 +1,103 @@
 import GreedyDeriv.Regex
 import GreedyDeriv.Greedy
 
+open Regex
+
+/-- Helper function to convert strings into regexes (string as a sequence of characters) -/
+def String.toRegex (s : String) : Regex (BA Char) :=
+  s.toList |>.map (Regex.pred ∘ BA.atom) |>.foldr Regex.mul epsilon
+
+/-- Implicit coercion to convert strings to regexes to make them more readable. -/
+instance : Coe String (Regex (BA Char)) where
+  coe := String.toRegex
+
+/-- Helper function to convert characters into regexes -/
+def Char.toRegex (c : Char) : Regex (BA Char) := Regex.pred (BA.atom c)
+
+/-- Implicit coercion to convert characters to regexes to make them more readable -/
+instance : Coe Char (Regex (BA Char)) where
+  coe := Char.toRegex
+
+/-- Helper function to obtain a string as character class. -/
+def String.characterClass (s : String) : BA Char :=
+  s.toList |>.map .atom |>.foldr .or .bot
+
 -- a + ab
-def r := (Regex.char 'a').plus ((Regex.char 'a').mul (Regex.char 'b'))
+def r : Regex (BA Char) := plus 'a' "ab"
 #eval r.rmatch "ab".toList
-
-example : Greedy r ⟨['a'], ['b']⟩ := by
-  apply Greedy.plus_left _ _ (['a'], ['b'])
-  apply Greedy.char
-
-theorem List.append_eq_singleton {α : Type u} {p q : List α} {x : α} :
-  p ++ q = [x] → (p = [x] ∧ q = []) ∨ (p = [] ∧ q = [x]) := by
-  intro h
-  cases p with
-  | nil => simp_all
-  | cons x xs => simp_all
+#eval r.gmatch "ab".toList
 
 -- (a + ab)*
-def r2 := ((Regex.char 'a').plus ((Regex.char 'a').mul (Regex.char 'b'))).star
+def r2 : Regex (BA Char) := (plus 'a' "ab").star
 #eval r2.rmatch "aab".toList
-
-example : Greedy r2 ⟨['a', 'a'], ['b']⟩ := by
-  apply Greedy.star
-  apply Greedy.plus_left
-  apply Greedy.mul _ _ ['a'] ['a']
-  apply Greedy.plus_left
-  apply Greedy.char
-  apply Greedy.star
-  apply Greedy.plus_left
-  apply Greedy.mul _ _ ['a'] []
-  apply Greedy.plus_left
-  apply Greedy.char
-  apply Greedy.star
-  apply Greedy.plus_right
-  intro h
-  let ⟨s₃, s₄, hs, h⟩ := h
-  simp at hs
-  apply List.append_eq_singleton at hs
-  cases hs with
-  | inl hs' =>
-    rw [hs'.left] at h
-    cases h with
-    | mul h₁ h₂ hs =>
-      cases h₁ with
-      | plus_left h =>
-        cases h
-        simp at hs
-      | plus_right h =>
-        cases h with
-        | mul h₁ h₂ hs' =>
-          cases h₁
-          rw [←hs'] at hs
-          simp at hs
-  | inr hs =>
-    rw [hs.left] at h
-    cases h with
-    | mul h₁ h₂ hs =>
-      cases h₁ with
-      | plus_left h =>
-        cases h
-        simp at hs
-      | plus_right h =>
-        cases h with
-        | mul h₁ h₂ hs' =>
-          cases h₁
-          rw [←hs'] at hs
-          simp at hs
-  apply Greedy.one
-
+#eval r2.gmatch "aab".toList
 
 -- c + ab
-def r3 := (Regex.char 'c').plus ((Regex.char 'a').mul (Regex.char 'b'))
+def r3 : Regex (BA Char) := plus 'c' "ab"
 #eval r3.rmatch "ab".toList
-
-example : Greedy r3 ⟨['b', 'a'], []⟩ := by
-  apply Greedy.plus_right _ _ (['b', 'a'], [])
-  intro ⟨s₁, s₂, hs, h⟩
-  cases h
-  simp at hs
-  apply Greedy.mul _ _ ['a'] ['b']
-  apply Greedy.char
-  apply Greedy.char
+#eval r3.gmatch "ab".toList
 
 -- (a + aa)a
-def r4 := ((Regex.char 'a').plus ((Regex.char 'a').mul (Regex.char 'a'))).mul (Regex.char 'a')
+def r4 : Regex (BA Char) := (plus 'a' "aa").mul 'a'
 #eval r4.rmatch "aaa".toList
+#eval r4.gmatch "aaa".toList
 
-example : Greedy r4 ⟨['a', 'a'], ['a']⟩ := by
-  apply Greedy.mul _ _ ['a'] ['a'] ['a']
-  apply Greedy.plus_left
-  apply Greedy.char
-  apply Greedy.char
+-- a*a
+def r5 : Regex (BA Char) := (star 'a').mul 'a'
+#eval r5.rmatch "aa".toList
+#eval r5.gmatch "aa".toList
+
+-- (ε|b)*
+def r6 : Regex (BA Char) := (epsilon.plus 'b').star
+#eval r6.rmatch "bb".toList
+#eval r6.gmatch "bb".toList
+
+-- (ε|b)(ε|b)*
+def r6' : Regex (BA Char) := (epsilon.plus 'b').mul ((epsilon.plus 'b').star)
+#eval r6'.rmatch "bb".toList
+#eval r6'.gmatch "bb".toList
+
+-- (a|ε|b)*
+def r7 : Regex (BA Char) := (plus 'a' (epsilon.plus 'b')).star
+#eval r7.rmatch "aaaabbb".toList
+#eval r7.gmatch "aaaabbb".toList
+
+-- (ε|a)b
+def r8 : Regex (BA Char) := (epsilon.plus 'a').mul 'b'
+#eval r8.rmatch "ab".toList
+#eval r8.gmatch "ab".toList
+
+-- ((a|ε|b)|b)
+def r9 : Regex (BA Char) := Regex.plus ((plus 'a' epsilon).plus 'b') 'b'
+#eval r9.gmatch "b".toList
+#eval r9.rmatch "b".toList
+
+-- (ε|a)*b
+def r10 : Regex (BA Char) := (Regex.plus epsilon 'a').star.mul 'b'
+#eval r10.gmatch "ab".toList
+#eval r10.rmatch "ab".toList
+
+-- (a|ε)*(ε|b)
+def r11 : Regex (BA Char) := (Regex.plus 'a' epsilon).star.mul (Regex.plus (epsilon) 'b')
+#eval r11.gmatch "ab".toList
+#eval r11.rmatch "ab".toList
+
+-- (ε|a)*(ε|b)
+def r12 : Regex (BA Char) := (Regex.plus epsilon 'a').star.mul (Regex.plus (epsilon) 'b')
+#eval r12.gmatch "ab".toList
+#eval r12.rmatch "ab".toList
+
+-- (a|ε|b)*b
+def r13 : Regex (BA Char) := (Regex.plus 'a' (Regex.plus epsilon 'b')).star.mul 'b'
+#eval r13.gmatch "bb".toList
+#eval r13.rmatch "bb".toList
+
+-- a*a
+def r14 : Regex (BA Char) := (lazy_star 'a').mul 'a'
+#eval r14.rmatch "aaa".toList
+#eval r14.gmatch "aaa".toList
+
+-- a*b
+def r15 : Regex (BA Char) := (lazy_star 'a').mul 'b'
+#eval r15.rmatch "aab".toList
+#eval r15.gmatch "aab".toList
