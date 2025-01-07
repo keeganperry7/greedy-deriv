@@ -11,8 +11,8 @@ def Regex.accept : Regex α → Loc σ → (Loc σ → Option (Loc σ)) → Opti
   | pred c, (u, d::v), k => if denote c d then k (d::u, v) else none
   | plus r₁ r₂, loc, k => (r₁.accept loc k).or (r₂.accept loc k)
   | mul r₁ r₂, loc, k => r₁.accept loc (fun loc' => r₂.accept loc' k)
-  | star r, loc, k => (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then r.star.accept loc' k else none)).or (k loc)
-  | lazy_star r, loc, k => (k loc).or (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then r.lazy_star.accept loc' k else none))
+  | star r, loc, k => (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then r.star.accept loc' k else k loc)).or (k loc)
+  | lazy_star r, loc, k => (k loc).or (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then r.lazy_star.accept loc' k else k loc))
 termination_by r loc => (r.size, loc.right.length)
 
 def Regex.gmatch : Regex α → List σ → Option (Loc σ)
@@ -23,7 +23,7 @@ theorem accept_mul_def (r₁ r₂ : Regex α) (loc : Loc σ) (k : Loc σ → Opt
   rw [accept]
 
 theorem accept_star_def (r : Regex α) (loc : Loc σ) (k : Loc σ → Option (Loc σ)) :
-  r.star.accept loc k = (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then r.star.accept loc' k else none)).or (k loc) := by
+  r.star.accept loc k = (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then r.star.accept loc' k else k loc)).or (k loc) := by
   rw [accept]
 
 @[simp]
@@ -615,12 +615,18 @@ theorem accept_nil_nullable {r : Regex α} {s : List σ} {k : Loc σ → Option 
   | .star r => by
     rw [accept]
     simp
-    rw [accept_cont_none]
-    simp
+    by_cases hn : r.nullable
+    · rw [accept_nil_nullable hn]
+      simp
+    · rw [accept_nil_not_nullable hn]
+      simp
   | lazy_star r => by
     rw [accept]
     simp
-    rw [accept_cont_none]
-    simp
+    by_cases hn : r.nullable
+    · rw [accept_nil_nullable hn]
+      simp
+    · rw [accept_nil_not_nullable hn]
+      simp
 termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)

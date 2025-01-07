@@ -5,6 +5,97 @@ variable {α σ : Type u} [EffectiveBooleanAlgebra α σ]
 
 open Regex
 
+theorem existsMatch_accept (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option (Loc σ)) (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) :
+  r.existsMatch (s₁, s₂) = (r.accept (s₁, s₂) k).isSome :=
+  match r with
+  | epsilon => by
+    simp [accept]
+    apply hk
+  | pred c => by
+    cases s₂ with
+    | nil => simp [accept]
+    | cons x xs =>
+      simp [accept]
+      split_ifs with hc
+      · simp
+        apply hk
+      · simp
+  | plus r₁ r₂ => by
+    simp [accept]
+    rw [←existsMatch_accept r₁ _ _ _ hk]
+    rw [←existsMatch_accept r₂ _ _ _ hk]
+    rw [plus_existsMatch]
+  | mul r₁ r₂ => by
+    match r₁ with
+    | epsilon =>
+      cases s₂ with
+      | nil =>
+        simp [accept]
+        rw [←existsMatch_accept r₂ _ _ _ hk]
+        simp
+      | cons x xs =>
+        simp [accept]
+        rw [←existsMatch_accept r₂ _ _ _ hk]
+        simp
+    | pred c =>
+      cases s₂ with
+      | nil => simp [accept]
+      | cons x xs =>
+        simp [accept]
+        split_ifs
+        · rw [existsMatch_accept r₂ _ _ _ hk]
+        · simp
+    | plus r₁₁ r₁₂ =>
+      simp [accept]
+      simp_rw [←accept_mul_def]
+      rw [←existsMatch_accept (r₁₁.mul r₂) _ _ _ hk]
+      rw [←existsMatch_accept (r₁₂.mul r₂) _ _ _ hk]
+      cases s₂ with
+      | nil =>
+        simp
+        rw [Bool.and_or_distrib_right]
+      | cons x xs =>
+        simp
+        rw [Bool.and_or_distrib_right, plus_existsMatch]
+        ac_rfl
+    | mul r₁₁ r₁₂ =>
+      simp [accept]
+      simp_rw [←accept_mul_def]
+      rw [←existsMatch_accept (r₁₁.mul (r₁₂.mul r₂)) _ _ _ hk]
+      cases s₂ <;> (simp only [existsMatch, nullable, Regex.deriv]; rw [Bool.and_assoc])
+    | .star r =>
+      cases s₂ with
+      | nil =>
+        simp [accept]
+        rw [←existsMatch_accept r₂ _ _ _ hk]
+        simp
+        intro h
+        sorry
+      | cons x xs =>
+        sorry
+    | lazy_star r =>
+      cases s₂ with
+      | nil =>
+        simp [accept]
+        rw [←existsMatch_accept r₂ _ _ _ hk]
+        simp
+        intro h
+        sorry
+      | cons x xs =>
+        sorry
+  | .star r => by
+    rw [accept_nullable, nullable_existsMatch]
+    simp only [Regex.nullable]
+    simp only [Regex.nullable]
+    apply hk
+  | lazy_star r => by
+    rw [accept_nullable, nullable_existsMatch]
+    simp only [Regex.nullable]
+    simp only [Regex.nullable]
+    apply hk
+termination_by (r.size, r.left.size)
+decreasing_by all_goals (simp only [left, size]; omega)
+
 theorem accept_deriv_cond (r : Regex α) (s₁ s₂ : List σ) (x : σ) (k : Loc σ → Option (Loc σ)) :
   (r.deriv x).accept (x::s₁, s₂) k = r.accept (s₁, x::s₂) (fun l' ↦ if l'.right.length < (x::s₂).length then k l' else none) :=
   match r with
@@ -164,7 +255,7 @@ termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
 theorem accept_prune (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option (Loc σ)) (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) :
-  r.accept (s₁, s₂) k = r.prune.accept (s₁, s₂) k :=
+  r.accept (s₁, s₂) k = (r.prune (s₁, s₂)).accept (s₁, s₂) k :=
   match r with
   | epsilon => by simp only [prune]
   | pred c => by simp only [prune]
@@ -247,6 +338,9 @@ theorem accept_prune (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option
         rw [hr₂_prune]
   | .star r => by
     simp
+    rw [accept, accept]
+    simp
+    sorry
   | lazy_star r => by
     simp
     rw [accept, accept]

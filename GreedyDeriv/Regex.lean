@@ -53,31 +53,6 @@ def nullable : Regex α → Bool
   | star _ => true
   | lazy_star _ => true
 
- @[simp]
-def prune : Regex α → Regex α
-  | epsilon => epsilon
-  | pred c => pred c
-  | plus r₁ r₂ =>
-    if r₁.nullable
-      then r₁.prune
-      else plus r₁.prune r₂.prune
-  | mul epsilon r₂ => r₂.prune
-  | mul (pred c) r₂ => mul (pred c) r₂
-  | mul (plus r₁₁ r₁₂) r₂ =>
-    if (r₁₁.mul r₂).nullable
-      then (r₁₁.mul r₂).prune
-      else plus (r₁₁.mul r₂).prune (r₁₂.mul r₂).prune
-  | mul (mul r₁₁ r₁₂) r₂ => (mul r₁₁ (r₁₂.mul r₂)).prune
-  | mul (star r) r₂ => mul r.star r₂.prune
-  | mul (lazy_star r) r₂ =>
-    if r₂.nullable
-      then r₂.prune
-      else mul r.lazy_star r₂.prune
-  | star r => r.star
-  | lazy_star _ => epsilon
-termination_by r => (r.size, r.left.size)
-decreasing_by all_goals (simp only [left, size]; omega)
-
 variable {σ : Type u} [EffectiveBooleanAlgebra α σ]
 
 @[simp]
@@ -96,13 +71,75 @@ def deriv : Regex α → σ → Regex α
   termination_by r => (r.size, r.left.size)
   decreasing_by all_goals (simp only [left, size]; omega)
 
+@[simp]
+def existsMatch : Regex α → Loc σ → Bool
+  | r, ⟨_, []⟩ => r.nullable
+  | r, ⟨u, c::v⟩ => r.nullable || (r.deriv c).existsMatch ⟨c::u, v⟩
+termination_by _ l => l.right.length
+
+@[simp]
+theorem epsilon_existsMatch (s₁ s₂ : List σ) :
+  (@epsilon α).existsMatch (s₁, s₂) = true := by
+  cases s₂ <;> simp
+
+@[simp]
+theorem bot_not_existsMatch (s₁ s₂ : List σ) :
+  (@pred α ⊥).existsMatch (s₁, s₂) = false := by
+  induction s₂ generalizing s₁ with
+  | nil => simp
+  | cons x xs ih =>
+    simp
+    apply ih
+
+theorem nullable_existsMatch (r : Regex α) (s₁ s₂ : List σ) (hn : r.nullable) :
+  r.existsMatch (s₁, s₂) = true := by
+  cases s₂ <;> simp [hn]
+
+theorem plus_existsMatch (r₁ r₂ : Regex α) (s₁ s₂ : List σ) :
+  (r₁.plus r₂).existsMatch (s₁, s₂) = (r₁.existsMatch (s₁, s₂) || r₂.existsMatch (s₁, s₂)) := by
+  induction s₂ generalizing s₁ r₁ r₂ with
+  | nil => simp
+  | cons x xs ih =>
+    unfold existsMatch
+    rw [Regex.deriv, ih]
+    simp
+    ac_rfl
+
+ @[simp]
+def prune : Regex α → Loc σ → Regex α
+  | epsilon, _ => epsilon
+  | pred c, _ => pred c
+  | plus r₁ r₂, l =>
+    if r₁.nullable
+      then r₁.prune l
+      else plus (r₁.prune l) (r₂.prune l)
+  | mul epsilon r₂, l => r₂.prune l
+  | mul (pred c) r₂, _ => mul (pred c) r₂
+  | mul (plus r₁₁ r₁₂) r₂, l =>
+    if (r₁₁.mul r₂).nullable
+      then (r₁₁.mul r₂).prune l
+      else plus ((r₁₁.mul r₂).prune l) ((r₁₂.mul r₂).prune l)
+  | mul (mul r₁₁ r₁₂) r₂, l => (mul r₁₁ (r₁₂.mul r₂)).prune l
+  | mul (star r) r₂, l =>
+    if r₂.existsMatch l
+      then mul (r.prune l).star (r₂.prune l)
+      else mul r.star (r₂.prune l)
+  | mul (lazy_star r) r₂, l =>
+    if r₂.existsMatch l
+      then r₂.prune l
+      else mul r.lazy_star (r₂.prune l)
+  | star r, l => (r.prune l).star
+  | lazy_star _, _ => epsilon
+termination_by r => (r.size, r.left.size)
+decreasing_by all_goals (simp only [left, size]; omega)
+
 def matchEnd : Regex α → Loc σ → Option (Loc σ)
   | r, (u, []) =>
     if r.nullable
       then some (u, [])
       else none
   | r, (u, c :: v) =>
-    match matchEnd (r.prune.deriv c) (c :: u, v) with
+    match matchEnd ((r.prune (u, c::v)).deriv c) (c :: u, v) with
     | none => if r.nullable then some (u, c::v) else none
     | some loc => some loc
 termination_by _ loc => loc.right.length
@@ -119,7 +156,7 @@ theorem matchEnd_soundness (r : Regex α) (s₁ s₂ s₁' s₂' : List σ) :
     rw [h.right.left, h.right.right]
   | cons x xs ih =>
     simp [matchEnd] at h
-    cases k : (r.prune.deriv x).matchEnd (x::s₁, xs) with
+    cases k : ((r.prune (s₁, x::xs)).deriv x).matchEnd (x::s₁, xs) with
     | none =>
       simp [k] at h
       rw [h.right.left, h.right.right]
@@ -139,7 +176,7 @@ theorem soundness (r : Regex α) (s : List σ) (loc : Loc σ) :
     simp [←h.right]
   | cons x xs =>
     simp [rmatch, matchEnd] at h
-    cases k : (r.prune.deriv x).matchEnd ([x], xs) with
+    cases k : ((r.prune ([], x::xs)).deriv x).matchEnd ([x], xs) with
     | none =>
       simp [k] at h
       simp [←h.right]
