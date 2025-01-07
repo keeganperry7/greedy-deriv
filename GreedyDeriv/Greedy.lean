@@ -33,19 +33,6 @@ theorem accept_bot (loc : Loc σ) (k : Loc σ → Option (Loc σ)) :
   | ⟨_, []⟩ => simp [accept]
   | ⟨_, x::xs⟩ => simp [accept]
 
-theorem Option.or_eq {α : Type u} {o o' u u' : Option α} :
-  o = u →
-  o' = u' →
-  o.or o' = u.or u' := by
-  intro h h'
-  rw [h, h']
-
-theorem fn_arg₃_eq {α β γ δ : Type u} {f : α → β → γ → δ} {a : α} {b : β} {c c' : γ} :
-  c = c' →
-  f a b c = f a b c' := by
-  intro h
-  rw [h]
-
 theorem iff_eq_of_eq {α : Type u} {a b c : α} :
   a = b →
   (a = c ↔ b = c) := by
@@ -80,7 +67,7 @@ theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Optio
         · rw [accept_suffix r₂ _ x]
           nth_rw 2 [accept_suffix r₂ _ x]
           simp
-          apply fn_arg₃_eq
+          congr
           ext l t
           split_ifs with hl hl'
           · rfl
@@ -106,22 +93,21 @@ theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Optio
       simp
       rw [accept_suffix r₂ _ x]
       simp
-      apply Option.or_eq
-      apply fn_arg₃_eq
+      congr
       ext loc' t
       split_ifs with hl
       · rw [accept_suffix r.star _ x]
         nth_rw 2 [accept_suffix r.star _ x]
         simp
         apply iff_eq_of_eq
-        apply fn_arg₃_eq
+        congr
         ext l u
         split_ifs with h₁
         · simp
           apply iff_eq_of_eq
           rw [accept_suffix r₂ _ x]
           nth_rw 2 [accept_suffix r₂ _ x]
-          apply fn_arg₃_eq
+          congr
           ext l' v
           split_ifs with h₂ h₃
           · rfl
@@ -134,29 +120,26 @@ theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Optio
           · rfl
         · rfl
       · rfl
-      rfl
     | lazy_star r =>
       rw [accept, accept, accept, accept]
       simp
       rw [accept_suffix r₂ _ x]
       simp
-      apply Option.or_eq
-      rfl
-      apply fn_arg₃_eq
+      congr
       ext loc' t
       split_ifs with hl
       · rw [accept_suffix r.lazy_star _ x]
         nth_rw 2 [accept_suffix r.lazy_star _ x]
         simp
         apply iff_eq_of_eq
-        apply fn_arg₃_eq
+        congr
         ext l u
         split_ifs with h₁
         · simp
           apply iff_eq_of_eq
           rw [accept_suffix r₂ _ x]
           nth_rw 2 [accept_suffix r₂ _ x]
-          apply fn_arg₃_eq
+          congr
           ext l' v
           split_ifs with h₂ h₃
           · rfl
@@ -172,15 +155,14 @@ theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Optio
   | .star r => by
     rw [accept, accept]
     simp
-    apply Option.or_eq
-    apply fn_arg₃_eq
+    congr
     ext loc' t
     split_ifs with hl
     · rw [accept_suffix r.star _ x]
       nth_rw 2 [accept_suffix r.star _ x]
       simp
       apply iff_eq_of_eq
-      apply fn_arg₃_eq
+      congr
       ext l u
       split_ifs with h₁ h₂
       · rfl
@@ -190,20 +172,17 @@ theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Optio
         exact Nat.le_of_lt hl
       · rfl
     · rfl
-    rfl
   | lazy_star r => by
     rw [accept, accept]
     simp
-    apply Option.or_eq
-    rfl
-    apply fn_arg₃_eq
+    congr
     ext loc' t
     split_ifs with hl
     · rw [accept_suffix r.lazy_star _ x]
       nth_rw 2 [accept_suffix r.lazy_star _ x]
       simp
       apply iff_eq_of_eq
-      apply fn_arg₃_eq
+      congr
       ext l u
       split_ifs with h₁ h₂
       · rfl
@@ -321,22 +300,21 @@ theorem accept_not_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ →
       simp
       rw [accept_not_nullable r₂ _ _ k x]
       simp
-      apply Option.or_eq
-      apply fn_arg₃_eq
+      congr
       ext loc' t
       split_ifs with hl
       · rw [accept_suffix r.star _ x]
         nth_rw 2 [accept_suffix r.star _ x]
         simp
         apply iff_eq_of_eq
-        apply fn_arg₃_eq
+        congr
         ext l u
         split_ifs with h₁
         · rw [accept_suffix r₂ _ x]
           nth_rw 2 [accept_suffix r₂ _ x]
           simp
           apply iff_eq_of_eq
-          apply fn_arg₃_eq
+          congr
           ext l' v
           split_ifs with h₂ h₃
           · rfl
@@ -349,7 +327,6 @@ theorem accept_not_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ →
           · rfl
         · rfl
       · rfl
-      rfl
       simp [hn]
     | lazy_star r =>
       simp at hn
@@ -357,23 +334,21 @@ theorem accept_not_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ →
       simp
       rw [accept_not_nullable r₂ _ _ k x]
       simp
-      apply Option.or_eq
-      rfl
-      apply fn_arg₃_eq
+      congr
       ext loc' t
       split_ifs with hl
       · rw [accept_suffix r.lazy_star _ x]
         nth_rw 2 [accept_suffix r.lazy_star _ x]
         simp
         apply iff_eq_of_eq
-        apply fn_arg₃_eq
+        congr
         ext l u
         split_ifs with h₁
         · rw [accept_suffix r₂ _ x]
           nth_rw 2 [accept_suffix r₂ _ x]
           simp
           apply iff_eq_of_eq
-          apply fn_arg₃_eq
+          congr
           ext l' v
           split_ifs with h₂ h₃
           · rfl
