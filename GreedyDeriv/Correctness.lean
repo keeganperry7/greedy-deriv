@@ -48,22 +48,21 @@ theorem accept_deriv_cond (r : Regex α) (s₁ s₂ : List σ) (x : σ) (k : Loc
       simp
       simp_rw [accept_suffix r.star (fun loc' ↦ r₂.accept loc' fun l' ↦ if l'.2.length < s₂.length + 1 then k l' else none) none]
       simp
-      apply Option.or_eq
-      apply fn_arg₃_eq
+      congr
       ext loc t
       split_ifs with hl
       · rw [accept_mul_def]
         rw [accept_suffix r.star _ none]
         simp
         apply iff_eq_of_eq
-        apply fn_arg₃_eq
+        congr
         ext l u
         split_ifs with h₁
         · rw [accept_suffix r₂ _ none]
           nth_rw 2 [accept_suffix r₂ _ none]
           simp
           apply iff_eq_of_eq
-          apply fn_arg₃_eq
+          congr
           ext l' v
           split_ifs with h₂ h₃
           · rfl
@@ -76,7 +75,6 @@ theorem accept_deriv_cond (r : Regex α) (s₁ s₂ : List σ) (x : σ) (k : Loc
           · rfl
         · rfl
       · rfl
-      rfl
     | lazy_star r =>
       simp
       rw [accept, accept, accept, accept]
@@ -85,23 +83,21 @@ theorem accept_deriv_cond (r : Regex α) (s₁ s₂ : List σ) (x : σ) (k : Loc
       simp
       simp_rw [accept_suffix r.lazy_star (fun loc' ↦ r₂.accept loc' fun l' ↦ if l'.2.length < s₂.length + 1 then k l' else none) none]
       simp
-      apply Option.or_eq
-      rfl
-      apply fn_arg₃_eq
+      congr
       ext loc t
       split_ifs with hl
       · rw [accept_mul_def]
         rw [accept_suffix r.lazy_star _ none]
         simp
         apply iff_eq_of_eq
-        apply fn_arg₃_eq
+        congr
         ext l u
         split_ifs with h₁
         · rw [accept_suffix r₂ _ none]
           nth_rw 2 [accept_suffix r₂ _ none]
           simp
           apply iff_eq_of_eq
-          apply fn_arg₃_eq
+          congr
           ext l' v
           split_ifs with h₂ h₃
           · rfl
@@ -121,13 +117,13 @@ theorem accept_deriv_cond (r : Regex α) (s₁ s₂ : List σ) (x : σ) (k : Loc
     rw [accept]
     simp_rw [accept_suffix r.star (fun l' ↦ if l'.2.length < s₂.length + 1 then k l' else none) none]
     simp
-    apply fn_arg₃_eq
+    congr
     ext loc t
     split_ifs with hl
     · rw [accept_suffix r.star k none]
       simp
       apply iff_eq_of_eq
-      apply fn_arg₃_eq
+      congr
       ext l u
       split_ifs with h₁ h₂
       · rfl
@@ -144,13 +140,13 @@ theorem accept_deriv_cond (r : Regex α) (s₁ s₂ : List σ) (x : σ) (k : Loc
     rw [accept]
     simp_rw [accept_suffix r.lazy_star (fun l' ↦ if l'.2.length < s₂.length + 1 then k l' else none) none]
     simp
-    apply fn_arg₃_eq
+    congr
     ext loc t
     split_ifs with hl
     · rw [accept_suffix r.lazy_star k none]
       simp
       apply iff_eq_of_eq
-      apply fn_arg₃_eq
+      congr
       ext l u
       split_ifs with h₁ h₂
       · rfl
