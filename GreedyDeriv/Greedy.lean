@@ -33,12 +33,6 @@ theorem accept_bot (loc : Loc σ) (k : Loc σ → Option (Loc σ)) :
   | ⟨_, []⟩ => simp [accept]
   | ⟨_, x::xs⟩ => simp [accept]
 
-theorem iff_eq_of_eq {α : Type u} {a b c : α} :
-  a = b →
-  (a = c ↔ b = c) := by
-  intro h
-  rw [h]
-
 theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Option (Loc σ)) :
   r.accept (s₁, s₂) k = r.accept (s₁, s₂) (fun l' => if l'.right.length ≤ s₂.length then k l' else x) :=
   match r with
@@ -68,7 +62,7 @@ theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Optio
           nth_rw 2 [accept_suffix r₂ _ x]
           simp
           congr
-          ext l t
+          funext l
           split_ifs with hl hl'
           · rfl
           · absurd hl'
@@ -94,21 +88,18 @@ theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Optio
       rw [accept_suffix r₂ _ x]
       simp
       congr
-      ext loc' t
+      funext loc'
       split_ifs with hl
       · rw [accept_suffix r.star _ x]
         nth_rw 2 [accept_suffix r.star _ x]
         simp
-        apply iff_eq_of_eq
         congr
-        ext l u
+        funext l
         split_ifs with h₁
-        · simp
-          apply iff_eq_of_eq
-          rw [accept_suffix r₂ _ x]
+        · rw [accept_suffix r₂ _ x]
           nth_rw 2 [accept_suffix r₂ _ x]
           congr
-          ext l' v
+          funext l'
           split_ifs with h₂ h₃
           · rfl
           · absurd h₃
@@ -126,21 +117,18 @@ theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Optio
       rw [accept_suffix r₂ _ x]
       simp
       congr
-      ext loc' t
+      funext loc'
       split_ifs with hl
       · rw [accept_suffix r.lazy_star _ x]
         nth_rw 2 [accept_suffix r.lazy_star _ x]
         simp
-        apply iff_eq_of_eq
         congr
-        ext l u
+        funext l
         split_ifs with h₁
-        · simp
-          apply iff_eq_of_eq
-          rw [accept_suffix r₂ _ x]
+        · rw [accept_suffix r₂ _ x]
           nth_rw 2 [accept_suffix r₂ _ x]
           congr
-          ext l' v
+          funext l'
           split_ifs with h₂ h₃
           · rfl
           · absurd h₃
@@ -156,14 +144,13 @@ theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Optio
     rw [accept, accept]
     simp
     congr
-    ext loc' t
+    funext loc'
     split_ifs with hl
     · rw [accept_suffix r.star _ x]
       nth_rw 2 [accept_suffix r.star _ x]
       simp
-      apply iff_eq_of_eq
       congr
-      ext l u
+      funext l
       split_ifs with h₁ h₂
       · rfl
       · absurd h₂
@@ -176,14 +163,13 @@ theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Optio
     rw [accept, accept]
     simp
     congr
-    ext loc' t
+    funext loc'
     split_ifs with hl
     · rw [accept_suffix r.lazy_star _ x]
       nth_rw 2 [accept_suffix r.lazy_star _ x]
       simp
-      apply iff_eq_of_eq
       congr
-      ext l u
+      funext l
       split_ifs with h₁ h₂
       · rfl
       · absurd h₂
@@ -301,21 +287,19 @@ theorem accept_not_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ →
       rw [accept_not_nullable r₂ _ _ k x]
       simp
       congr
-      ext loc' t
+      funext loc'
       split_ifs with hl
       · rw [accept_suffix r.star _ x]
         nth_rw 2 [accept_suffix r.star _ x]
         simp
-        apply iff_eq_of_eq
         congr
-        ext l u
+        funext l
         split_ifs with h₁
         · rw [accept_suffix r₂ _ x]
           nth_rw 2 [accept_suffix r₂ _ x]
           simp
-          apply iff_eq_of_eq
           congr
-          ext l' v
+          funext l'
           split_ifs with h₂ h₃
           · rfl
           · absurd h₃
@@ -335,21 +319,19 @@ theorem accept_not_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ →
       rw [accept_not_nullable r₂ _ _ k x]
       simp
       congr
-      ext loc' t
+      funext loc'
       split_ifs with hl
       · rw [accept_suffix r.lazy_star _ x]
         nth_rw 2 [accept_suffix r.lazy_star _ x]
         simp
-        apply iff_eq_of_eq
         congr
-        ext l u
+        funext l
         split_ifs with h₁
         · rw [accept_suffix r₂ _ x]
           nth_rw 2 [accept_suffix r₂ _ x]
           simp
-          apply iff_eq_of_eq
           congr
-          ext l' v
+          funext l'
           split_ifs with h₂ h₃
           · rfl
           · absurd h₃
@@ -406,7 +388,7 @@ theorem accept_cont_none (r : Regex α) (s₁ s₂ : List σ) :
       have hr₂_none :
         (fun l' ↦ if l'.right.length ≤ s₂.length then r₂.accept l' fun l' ↦ none else none) =
         (fun l' ↦ none) := by
-        ext l t
+        funext l
         split_ifs with hl
         · rw [accept_cont_none]
         · rfl
@@ -418,7 +400,7 @@ theorem accept_cont_none (r : Regex α) (s₁ s₂ : List σ) :
       have hr₂_none :
         (fun l' ↦ if l'.right.length ≤ s₂.length then r₂.accept l' fun l' ↦ none else none) =
         (fun l' ↦ none) := by
-        ext l t
+        funext l
         split_ifs with hl
         · rw [accept_cont_none]
         · rfl
@@ -431,7 +413,7 @@ theorem accept_cont_none (r : Regex α) (s₁ s₂ : List σ) :
     have star_none :
       (fun loc' ↦ if loc'.2.length < s₂.length then r.star.accept loc' fun l' ↦ none else none) =
       (fun loc' ↦ none) := by
-      ext l t
+      funext l
       split_ifs with hl
       · rw [accept_cont_none]
       · rfl
@@ -444,7 +426,7 @@ theorem accept_cont_none (r : Regex α) (s₁ s₂ : List σ) :
     have lazy_star_none :
       (fun loc' ↦ if loc'.2.length < s₂.length then r.lazy_star.accept loc' fun l' ↦ none else none) =
       (fun loc' ↦ none) := by
-      ext l t
+      funext l
       split_ifs with hl
       · rw [accept_cont_none]
       · rfl
