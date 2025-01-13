@@ -554,7 +554,7 @@ theorem accept_deriv (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option
       · intro h
         apply accept_deriv r₂ _ _ k loc hk at h
         rw [accept, accept, h]
-        rw [Loc.right, List.length_cons, Option.or_some]
+        rw [Loc.right, List.length_cons, Option.some_or]
       · rw [Regex.deriv, accept, accept]
         nth_rw 2 [accept_deriv_cond]
         intro h
