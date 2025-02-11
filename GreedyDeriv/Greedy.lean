@@ -630,3 +630,29 @@ theorem accept_nil_nullable {r : Regex α} {s : List σ} {k : Loc σ → Option 
       simp
 termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
+
+theorem accept_nil_some_nullable {r : Regex α} {s : List σ} {k : Loc σ → Option (Loc σ)} :
+  (r.accept (s, []) k).isSome ↔ (k (s, [])).isSome ∧ r.nullable :=
+  match r with
+  | epsilon => by
+    simp [accept]
+  | pred c => by
+    simp [accept]
+  | plus r₁ r₂ => by
+    simp [accept]
+    rw [accept_nil_some_nullable]
+    rw [accept_nil_some_nullable]
+    tauto
+  | mul r₁ r₂ => by
+    simp [accept]
+    rw [accept_nil_some_nullable]
+    rw [accept_nil_some_nullable]
+    tauto
+  | .star r => by
+    simp [accept]
+    rw [accept_nil_some_nullable]
+    tauto
+  | lazy_star r => by
+    simp [accept]
+    rw [accept_nil_some_nullable]
+    tauto
