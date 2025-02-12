@@ -101,3 +101,9 @@ def r14 : Regex (BA Char) := (lazy_star 'a').mul 'a'
 def r15 : Regex (BA Char) := (lazy_star 'a').mul 'b'
 #eval r15.rmatch "aab".toList
 #eval r15.gmatch "aab".toList
+
+-- (a|b|ab)*bc
+def r16 : Regex (BA Char) := (plus (plus 'a' 'b') "ab").star.mul "bc"
+def s := (List.replicate 5 ['a', 'b']).flatten ++ ['a', 'c']
+#eval r16.rmatch s
+#eval r16.gmatch s

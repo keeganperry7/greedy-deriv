@@ -70,7 +70,8 @@ theorem existsMatch_accept (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → 
         rw [←existsMatch_accept r₂ _ _ _ hk]
         simp
         intro h
-        sorry
+        repeat rw [accept_nil_some_nullable] at h
+        exact h.left.right
       | cons x xs =>
         sorry
     | lazy_star r =>
@@ -80,7 +81,8 @@ theorem existsMatch_accept (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → 
         rw [←existsMatch_accept r₂ _ _ _ hk]
         simp
         intro h
-        sorry
+        repeat rw [accept_nil_some_nullable] at h
+        exact h.left.right
       | cons x xs =>
         sorry
   | .star r => by
@@ -340,7 +342,21 @@ theorem accept_prune (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option
     simp
     rw [accept, accept]
     simp
-    sorry
+    rw [←accept_prune]
+    congr
+    funext loc'
+    split_ifs with hl
+    · rw [accept_prune]
+      simp
+      sorry
+      exact hk
+    · rfl
+    intro s₃ s₄
+    split_ifs
+    · apply accept_nullable
+      simp
+      apply hk
+    · apply hk
   | lazy_star r => by
     simp
     rw [accept, accept]
