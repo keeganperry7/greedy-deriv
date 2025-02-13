@@ -27,7 +27,7 @@ def Span.left (s : Span σ) : List σ := s.1
 def Span.match (s : Span σ) : List σ := s.2.1
 
 @[simp]
-def Span.right (s : Span σ) : List σ := s.2.1
+def Span.right (s : Span σ) : List σ := s.2.2
 
 @[simp]
 def Span.reverse (s : Span σ) : Span σ :=
