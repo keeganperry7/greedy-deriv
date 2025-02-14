@@ -110,6 +110,16 @@ termination_by _ loc => loc.right.length
 def rmatch : Regex α → List σ → Option (Loc σ)
   | r, s => matchEnd r ([], s)
 
+def rmatchAux : Regex α → List σ → List σ → Option (Span σ)
+  | r, [], k => if r.nullable then some ⟨k, [], []⟩ else none
+  | r, c::s, k =>
+    match matchEnd r ([], c::s) with
+    | none => r.rmatchAux s (c::k)
+    | some ⟨u, v⟩ => some ⟨k, u.reverse, v⟩
+
+def rmatch' : Regex α → List σ → Option (Span σ)
+  | r, s => rmatchAux r s []
+
 theorem matchEnd_soundness (r : Regex α) (s₁ s₂ s₁' s₂' : List σ) :
   r.matchEnd (s₁, s₂) = some (s₁', s₂') → Loc.word (s₁, s₂) = Loc.word (s₁', s₂') := by
   intro h
