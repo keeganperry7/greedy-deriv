@@ -11,8 +11,8 @@ def Regex.accept : Regex α → Loc σ → (Loc σ → Option (Loc σ)) → Opti
   | pred c, (u, d::v), k => if denote c d then k (d::u, v) else none
   | plus r₁ r₂, loc, k => (r₁.accept loc k).or (r₂.accept loc k)
   | mul r₁ r₂, loc, k => r₁.accept loc (fun loc' => r₂.accept loc' k)
-  | star r, loc, k => (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then r.star.accept loc' k else none)).or (k loc)
-  | lazy_star r, loc, k => (k loc).or (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then r.lazy_star.accept loc' k else none))
+  | star r false, loc, k => (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then (r.star false).accept loc' k else none)).or (k loc)
+  | star r true, loc, k => (k loc).or (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then (r.star true).accept loc' k else none))
 termination_by r loc => (r.size, loc.right.length)
 
 def Regex.gmatch : Regex α → List σ → Option (Loc σ)
@@ -78,15 +78,15 @@ theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Optio
       repeat rw [←accept_mul_def]
       rw [accept_suffix (r₁₁.mul (r₁₂.mul r₂)) _ x]
       rfl
-    | .star r =>
+    | .star r true =>
       rw [accept, accept, accept, accept]
       simp only [Loc.right]
       rw [accept_suffix r₂ _ x]
       congr
       funext loc'
       split_ifs with hl
-      · rw [accept_suffix r.star _ x]
-        nth_rw 2 [accept_suffix r.star _ x]
+      · rw [accept_suffix (r.star _) _ x]
+        nth_rw 2 [accept_suffix (r.star _) _ x]
         simp only [Prod.mk.eta, Loc.right]
         congr
         funext l
@@ -106,15 +106,15 @@ theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Optio
           · rfl
         · rfl
       · rfl
-    | lazy_star r =>
+    | .star r false =>
       rw [accept, accept, accept, accept]
       simp only [Loc.right]
       rw [accept_suffix r₂ _ x]
       congr
       funext loc'
       split_ifs with hl
-      · rw [accept_suffix r.lazy_star _ x]
-        nth_rw 2 [accept_suffix r.lazy_star _ x]
+      · rw [accept_suffix (r.star _) _ x]
+        nth_rw 2 [accept_suffix (r.star _) _ x]
         simp only [Prod.mk.eta, Loc.right]
         congr
         funext l
@@ -134,14 +134,14 @@ theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Optio
           · rfl
         · rfl
       · rfl
-  | .star r => by
+  | .star r false => by
     rw [accept, accept]
     simp only [Loc.right, le_refl, ↓reduceIte]
     congr
     funext loc'
     split_ifs with hl
-    · rw [accept_suffix r.star _ x]
-      nth_rw 2 [accept_suffix r.star _ x]
+    · rw [accept_suffix (r.star _) _ x]
+      nth_rw 2 [accept_suffix (r.star _) _ x]
       simp only [Prod.mk.eta, Loc.right]
       congr
       funext l
@@ -153,14 +153,14 @@ theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Optio
         exact Nat.le_of_lt hl
       · rfl
     · rfl
-  | lazy_star r => by
+  | .star r true => by
     rw [accept, accept]
     simp only [Loc.right, le_refl, ↓reduceIte]
     congr
     funext loc'
     split_ifs with hl
-    · rw [accept_suffix r.lazy_star _ x]
-      nth_rw 2 [accept_suffix r.lazy_star _ x]
+    · rw [accept_suffix (r.star _) _ x]
+      nth_rw 2 [accept_suffix (r.star _) _ x]
       simp only [Prod.mk.eta, Loc.right]
       congr
       funext l
@@ -209,14 +209,16 @@ theorem accept_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Opt
     apply ih₂
     exact hn.right
     exact hk
-  | star r _ =>
-    rw [accept]
-    simp
-    exact Or.inr hk
-  | lazy_star r =>
-    rw [accept]
-    simp
-    exact Or.inl hk
+  | star r lazy? _ =>
+    cases lazy? with
+    | false =>
+      rw [accept]
+      simp
+      exact Or.inr hk
+    | true =>
+      rw [accept]
+      simp
+      exact Or.inl hk
 
 theorem accept_not_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option (Loc σ)) (x : Option (Loc σ)) (hn : ¬r.nullable) :
   r.accept (s₁, s₂) k = r.accept (s₁, s₂) (fun l' => if l'.right.length < s₂.length then k l' else x) :=
@@ -274,7 +276,7 @@ theorem accept_not_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ →
       simp at hn
       simp
       exact hn
-    | .star r =>
+    | .star r false =>
       simp at hn
       rw [accept, accept, accept, accept]
       simp only [Loc.right]
@@ -282,8 +284,8 @@ theorem accept_not_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ →
       congr
       funext loc'
       split_ifs with hl
-      · rw [accept_suffix r.star _ x]
-        nth_rw 2 [accept_suffix r.star _ x]
+      · rw [accept_suffix (r.star _) _ x]
+        nth_rw 2 [accept_suffix (r.star _) _ x]
         simp only [Prod.mk.eta, Loc.right]
         congr
         funext l
@@ -305,7 +307,7 @@ theorem accept_not_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ →
         · rfl
       · rfl
       simp [hn]
-    | lazy_star r =>
+    | .star r true =>
       simp at hn
       rw [accept, accept, accept, accept]
       simp only [Loc.right]
@@ -313,8 +315,8 @@ theorem accept_not_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ →
       congr
       funext loc'
       split_ifs with hl
-      · rw [accept_suffix r.lazy_star _ x]
-        nth_rw 2 [accept_suffix r.lazy_star _ x]
+      · rw [accept_suffix (r.star _) _ x]
+        nth_rw 2 [accept_suffix (r.star _) _ x]
         simp only [Prod.mk.eta, Loc.right]
         congr
         funext l
@@ -336,8 +338,8 @@ theorem accept_not_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ →
         · rfl
       · rfl
       simp [hn]
-  | .star r => by simp at hn
-  | lazy_star r => by simp at hn
+  | .star r false => by simp at hn
+  | .star r true => by simp at hn
 termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
@@ -372,8 +374,8 @@ theorem accept_cont_none (r : Regex α) (s₁ s₂ : List σ) :
       rw [accept, accept]
       simp_rw [←accept_mul_def]
       rw [accept_cont_none]
-    | .star r =>
-      rw [accept, accept_suffix r.star _ none]
+    | .star r false =>
+      rw [accept, accept_suffix (r.star _) _ none]
 
       have hr₂_none :
         (fun l' ↦ if l'.right.length ≤ s₂.length then r₂.accept l' fun l' ↦ none else none) =
@@ -384,8 +386,8 @@ theorem accept_cont_none (r : Regex α) (s₁ s₂ : List σ) :
         · rfl
 
       rw [hr₂_none, accept_cont_none]
-    | lazy_star r =>
-      rw [accept, accept_suffix r.lazy_star _ none]
+    | .star r true =>
+      rw [accept, accept_suffix (r.star _) _ none]
 
       have hr₂_none :
         (fun l' ↦ if l'.right.length ≤ s₂.length then r₂.accept l' fun l' ↦ none else none) =
@@ -396,12 +398,12 @@ theorem accept_cont_none (r : Regex α) (s₁ s₂ : List σ) :
         · rfl
 
       rw [hr₂_none, accept_cont_none]
-  | .star r => by
+  | .star r false => by
     rw [accept]
     simp only [Loc.right, Option.or_none]
 
     have star_none :
-      (fun loc' ↦ if loc'.2.length < s₂.length then r.star.accept loc' fun l' ↦ none else none) =
+      (fun loc' ↦ if loc'.2.length < s₂.length then (r.star false).accept loc' fun l' ↦ none else none) =
       (fun loc' ↦ none) := by
       funext l
       split_ifs with hl
@@ -409,12 +411,12 @@ theorem accept_cont_none (r : Regex α) (s₁ s₂ : List σ) :
       · rfl
 
     rw [star_none, accept_cont_none]
-  | lazy_star r => by
+  | .star r true => by
     rw [accept]
     simp only [Loc.right, Option.none_or]
 
     have lazy_star_none :
-      (fun loc' ↦ if loc'.2.length < s₂.length then r.lazy_star.accept loc' fun l' ↦ none else none) =
+      (fun loc' ↦ if loc'.2.length < s₂.length then (r.star true).accept loc' fun l' ↦ none else none) =
       (fun loc' ↦ none) := by
       funext l
       split_ifs with hl
@@ -469,20 +471,19 @@ theorem accept_nil_not_nullable {r : Regex α} {s : List σ} {k : Loc σ → Opt
       rw [accept_nil_not_nullable]
       simp at *
       tauto
-    | .star r =>
+    | .star r false =>
       rw [accept, accept]
       simp at *
       rw [@accept_nil_not_nullable r₂, accept_cont_none]
       simp only [and_self]
       simp [hr]
-    | lazy_star r =>
+    | .star r true =>
       rw [accept, accept]
       simp at *
       rw [@accept_nil_not_nullable r₂, accept_cont_none]
       simp only [and_self]
       simp [hr]
-  | .star _ => by simp at hr
-  | lazy_star _ => by simp at hr
+  | .star _ _ => by simp at hr
 termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
@@ -548,22 +549,22 @@ theorem accept_nil_nullable {r : Regex α} {s : List σ} {k : Loc σ → Option 
       rw [accept_nil_nullable]
       simp at hr
       simp [hr]
-    | .star r =>
+    | .star r false =>
       simp at hr
       rw [accept, accept_nil_nullable, accept_nil_nullable]
       exact hr
       rw [nullable]
-    | lazy_star r =>
+    | .star r true =>
       simp at hr
       rw [accept, accept_nil_nullable, accept_nil_nullable]
       exact hr
       rw [nullable]
-  | .star r => by
+  | .star r false => by
     rw [accept]
     simp
     rw [accept_cont_none]
     exact Option.none_or
-  | lazy_star r => by
+  | .star r true => by
     rw [accept]
     simp
     rw [accept_cont_none]

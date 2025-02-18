@@ -1,6 +1,5 @@
 import GreedyDeriv.Locations
 import GreedyDeriv.EffectiveBooleanAlgebra
-import Mathlib.Tactic.SplitIfs
 import Mathlib.Tactic.ApplyAt
 
 inductive Regex (α :  Type u) : Type u where
@@ -8,8 +7,7 @@ inductive Regex (α :  Type u) : Type u where
   | pred : α → Regex α
   | plus : Regex α → Regex α → Regex α
   | mul : Regex α → Regex α → Regex α
-  | star : Regex α → Regex α
-  | lazy_star : Regex α → Regex α
+  | star : Regex α → Bool → Regex α
   deriving Repr
 
 namespace Regex
@@ -22,8 +20,7 @@ def size : Regex α → Nat
   | pred _ => 1
   | plus r₁ r₂ => 1 + r₁.size + r₂.size
   | mul r₁ r₂ => 1 + r₁.size + r₂.size
-  | star r => 1 + r.size
-  | lazy_star r => 1 + r.size
+  | star r _ => 1 + r.size
 
 @[simp]
 def left : Regex α → Regex α
@@ -31,16 +28,14 @@ def left : Regex α → Regex α
   | pred c => pred c
   | plus r₁ r₂ => plus r₁ r₂
   | mul r₁ _ => r₁
-  | star r => star r
-  | lazy_star r => lazy_star r
+  | star r lazy? => star r lazy?
 
 def reverse : Regex α → Regex α
   | epsilon => epsilon
   | pred c => pred c
   | plus r₁ r₂ => plus r₂.reverse r₁.reverse
   | mul r₁ r₂ => mul r₂.reverse r₁.reverse
-  | star r => star r.reverse
-  | lazy_star r => lazy_star r.reverse
+  | star r lazy? => star r.reverse lazy?
 
 /-! ### Derivatives -/
 
@@ -50,8 +45,7 @@ def nullable : Regex α → Bool
   | pred _ => false
   | plus r₁ r₂ => r₁.nullable || r₂.nullable
   | mul r₁ r₂ => r₁.nullable && r₂.nullable
-  | star _ => true
-  | lazy_star _ => true
+  | star _ _ => true
 
  @[simp]
 def prune : Regex α → Regex α
@@ -68,17 +62,40 @@ def prune : Regex α → Regex α
       then (r₁₁.mul r₂).prune
       else plus (r₁₁.mul r₂).prune (r₁₂.mul r₂).prune
   | mul (mul r₁₁ r₁₂) r₂ => (mul r₁₁ (r₁₂.mul r₂)).prune
-  | mul (star r) r₂ => mul r.star r₂.prune
-  | mul (lazy_star r) r₂ =>
+  | mul (star r false) r₂ => mul (r.star false) r₂.prune
+  | mul (star r true) r₂ =>
     if r₂.nullable
       then r₂.prune
-      else mul r.lazy_star r₂.prune
-  | star r => r.star
-  | lazy_star _ => epsilon
+      else mul (r.star true) r₂.prune
+  | star r false => r.star false
+  | star _ true => epsilon
 termination_by r => (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
 variable {σ : Type u} [EffectiveBooleanAlgebra α σ]
+
+inductive Matches : Regex α → Loc σ → Prop
+  | epsilon (l : Loc σ) :
+    Matches epsilon l
+  | pred (c : α) (d : σ) (v : List σ) :
+    denote c d →
+    Matches (pred c) ([d], v)
+  | plus_left {r₁ r₂ : Regex α} (l : Loc σ) :
+    Matches r₁ l →
+    Matches (plus r₁ r₂) l
+  | plus_right {r₁ r₂ : Regex α} (l : Loc σ) :
+    Matches r₂ l →
+    Matches (plus r₁ r₂) l
+  | mul {r₁ r₂ : Regex α} (u v s : List σ) :
+    Matches r₁ (u, v ++ s) →
+    Matches r₂ (v.reverse, s) →
+    Matches (mul r₁ r₂) (v.reverse ++ u, s)
+  | star_nil {r : Regex α} {lazy? : Bool} (l : Loc σ) :
+    Matches (star r lazy?) l
+  | stars {r : Regex α} {lazy? : Bool} (u v s : List σ) :
+    Matches r (u, v ++ s) →
+    Matches (star r lazy?) (v.reverse, s) →
+    Matches (star r lazy?) (v.reverse ++ u, s)
 
 @[simp]
 def deriv : Regex α → σ → Regex α
@@ -89,10 +106,10 @@ def deriv : Regex α → σ → Regex α
   | mul (pred c) r₂, d => if denote c d then r₂ else pred ⊥
   | mul (plus r₁₁ r₁₂) r₂, c => plus ((r₁₁.mul r₂).deriv c) ((r₁₂.mul r₂).deriv c)
   | mul (mul r₁₁ r₁₂) r₂, c => (r₁₁.mul (r₁₂.mul r₂)).deriv c
-  | mul (star r) r₂, c => plus ((r.deriv c).mul (r.star.mul r₂)) (r₂.deriv c)
-  | mul (lazy_star r) r₂, c => plus (r₂.deriv c) ((r.deriv c).mul (r.lazy_star.mul r₂))
-  | star r, c => (r.deriv c).mul r.star
-  | lazy_star r, c => (r.deriv c).mul r.lazy_star
+  | mul (star r false) r₂, c => plus ((r.deriv c).mul ((r.star false).mul r₂)) (r₂.deriv c)
+  | mul (star r true) r₂, c => plus (r₂.deriv c) ((r.deriv c).mul ((r.star true).mul r₂))
+  | star r false, c => (r.deriv c).mul (r.star false)
+  | star r true, c => (r.deriv c).mul (r.star true)
   termination_by r => (r.size, r.left.size)
   decreasing_by all_goals (simp only [left, size]; omega)
 
