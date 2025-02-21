@@ -98,7 +98,11 @@ inductive Matches : Regex α → Loc σ → Loc σ → Prop
     Matches (star r lazy?) (u, v ++ s ++ t) (s.reverse ++ v.reverse ++ u, t)
 
 theorem Matches_distrib (r₁ r₂ r₃ : Regex α) (l₁ l₂ : Loc σ) :
-  Matches (mul (plus r₁ r₂) r₃) l₁ l₂ → Matches (plus (mul r₁ r₃) (mul r₂ r₃)) l₁ l₂ := by
+  Matches (mul (plus r₁ r₂) r₃) l₁ l₂ ↔ Matches (plus (mul r₁ r₃) (mul r₂ r₃)) l₁ l₂ := by
+  sorry
+
+theorem Matches_mul_assoc (r₁ r₂ r₃ : Regex α) (l₁ l₂ : Loc σ) :
+  Matches (mul (mul r₁ r₂) r₃) l₁ l₂ ↔ Matches (mul r₁ (mul r₂ r₃)) l₁ l₂ := by
   sorry
 
 @[simp]

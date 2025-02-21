@@ -39,6 +39,10 @@ theorem matches_accept' (r : Regex α) (l loc : Loc σ)  :
   Matches r l loc → ∃ loc', accept' r l some = some loc' := by
   sorry
 
+theorem accept'_mul_def (r₁ r₂ : Regex α) (loc : Loc σ) (k : Loc σ → Option (Loc σ)) :
+  (r₁.mul r₂).accept' loc k = (r₁.accept' loc (fun loc' => r₂.accept' loc' k)) := by
+  rw [accept']
+
 theorem accept'_longest (r : Regex α) (l loc : Loc σ) (h : accept' r l some = some loc) :
   (∀ l' : Loc σ, l'.word = l.word → Matches r l l' → l'.pos ≤ loc.pos) :=
   match r with
@@ -94,7 +98,7 @@ theorem accept'_longest (r : Regex α) (l loc : Loc σ) (h : accept' r l some = 
     | plus r₁₁ r₁₂ => by
       intro l' hl hm
       simp [accept'] at h
-      apply Matches_distrib at hm
+      rw [Matches_distrib] at hm
       cases hm with
       | plus_left _ _ hm =>
         rcases (matches_accept' _ _ _ hm) with ⟨loc', h'⟩
@@ -104,7 +108,13 @@ theorem accept'_longest (r : Regex α) (l loc : Loc σ) (h : accept' r l some = 
         rcases (matches_accept' _ _ _ hm) with ⟨loc', h'⟩
         have ih := accept'_longest (r₁₂.mul r₂) l loc' h' l' hl hm
         sorry
-    | mul r₁₁ r₁₂ => sorry
+    | mul r₁₁ r₁₂ => by
+      intro l' hl hm
+      rw [Matches_mul_assoc] at hm
+      simp [accept'] at h
+      simp_rw [←accept'_mul_def] at h
+      have ih := accept'_longest (r₁₁.mul (r₁₂.mul r₂)) l loc h l' hl hm
+      exact ih
     | .star r _ => sorry
   | .star r lazy? => by
     intro l' hl hm
@@ -113,6 +123,8 @@ theorem accept'_longest (r : Regex α) (l loc : Loc σ) (h : accept' r l some = 
       -- True!
       sorry
     | stars u v s t h₁ h₂ => sorry
+termination_by (r.size, r.left.size)
+decreasing_by all_goals (simp only [left, size]; omega)
 
 theorem accept_mul_def (r₁ r₂ : Regex α) (loc : Loc σ) (k : Loc σ → Option (Loc σ)) :
   (r₁.mul r₂).accept loc k = (r₁.accept loc (fun loc' => r₂.accept loc' k)) := by
