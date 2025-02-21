@@ -18,6 +18,9 @@ def Loc.reverse (loc : Loc α) : Loc α :=
   match loc with
   | ⟨u, v⟩ => ⟨v, u⟩
 
+instance : Max (Loc α) where
+  max x y := if x.pos >= y.pos then x else y
+
 abbrev Span (σ : Type u) := List σ × List σ × List σ
 
 @[simp]

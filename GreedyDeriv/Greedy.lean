@@ -15,8 +15,104 @@ def Regex.accept : Regex α → Loc σ → (Loc σ → Option (Loc σ)) → Opti
   | star r true, loc, k => (k loc).or (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then (r.star true).accept loc' k else none))
 termination_by r loc => (r.size, loc.right.length)
 
+def Regex.accept' : Regex α → Loc σ → (Loc σ → Option (Loc σ)) → Option (Loc σ)
+  | epsilon, loc, k => k loc
+  | pred _, (_, []), _ => none
+  | pred c, (u, d::v), k => if denote c d then k (d::u, v) else none
+  | plus r₁ r₂, loc, k => (r₁.accept' loc k).max (r₂.accept' loc k)
+  | mul r₁ r₂, loc, k => r₁.accept' loc (fun loc' => r₂.accept' loc' k)
+  | star r false, loc, k => (r.accept' loc (fun loc' => if loc'.right.length < loc.right.length then (r.star false).accept' loc' k else none)).max (k loc)
+  | star r true, loc, k => (k loc).max (r.accept' loc (fun loc' => if loc'.right.length < loc.right.length then (r.star true).accept' loc' k else none))
+termination_by r loc => (r.size, loc.right.length)
+
 def Regex.gmatch : Regex α → List σ → Option (Loc σ)
   | r, s => r.accept ([], s) some
+
+def Regex.llmatch : Regex α → List σ → Option (Loc σ)
+  | r, s => r.accept' ([], s) some
+
+theorem accept'_matches (r : Regex α) (l loc : Loc σ) :
+  accept' r l some = some loc → Matches r l loc := by
+  sorry
+
+theorem matches_accept' (r : Regex α) (l loc : Loc σ)  :
+  Matches r l loc → ∃ loc', accept' r l some = some loc' := by
+  sorry
+
+theorem accept'_longest (r : Regex α) (l loc : Loc σ) (h : accept' r l some = some loc) :
+  (∀ l' : Loc σ, l'.word = l.word → Matches r l l' → l'.pos ≤ loc.pos) :=
+  match r with
+  | epsilon => by
+    intro l' hl hm
+    cases hm with
+    | epsilon =>
+      simp [accept'] at h
+      rw [h]
+  | pred c => by
+    intro l' hl hm
+    cases hm with
+    | pred _ d u v hd =>
+      simp [accept'] at h
+      rw [h.right]
+  | plus r₁ r₂ => sorry
+  | mul r₁ r₂ =>
+    match r₁ with
+    | epsilon => by
+      intro l' hl hm
+      cases hm with
+      | mul u v s t h₁ h₂ =>
+        generalize hw : v ++ s ++ t = w
+        generalize hu' : v.reverse ++ u = u'
+        rw [hw, hu'] at h₁
+        cases h₁ with
+        | epsilon =>
+          simp at hu'
+          simp [accept', hu'] at h
+          simp [hu'] at h₂
+          have tmp := accept'_longest r₂ (u, s ++ t) loc h (s.reverse ++ u, t) (by simp) h₂
+          simp at tmp
+          simp [hu']
+          exact tmp
+    | pred c => by
+      intro l' hl hm
+      cases hm with
+      | mul u v s t h₁ h₂ =>
+        generalize hw : v ++ s ++ t = w
+        generalize hu' : v.reverse ++ u = u'
+        rw [hw, hu'] at h₁
+        cases h₁ with
+        | pred _ d _ _ hd =>
+          simp at hw
+          rw [←List.singleton_append, List.append_left_inj] at hw
+          rw [hw] at h h₂
+          simp [accept'] at h
+          simp at h₂
+          have tmp := accept'_longest r₂ (d::u, s ++ t) loc h.right (s.reverse ++ d :: u, t) (by simp) h₂
+          rw [hw]
+          simp at *
+          exact tmp
+    | plus r₁₁ r₁₂ => by
+      intro l' hl hm
+      simp [accept'] at h
+      apply Matches_distrib at hm
+      cases hm with
+      | plus_left _ _ hm =>
+        rcases (matches_accept' _ _ _ hm) with ⟨loc', h'⟩
+        have tmp := accept'_longest (r₁₁.mul r₂) l loc' h' l' hl hm
+        sorry
+      | plus_right _ _ hm =>
+        rcases (matches_accept' _ _ _ hm) with ⟨loc', h'⟩
+        have ih := accept'_longest (r₁₂.mul r₂) l loc' h' l' hl hm
+        sorry
+    | mul r₁₁ r₁₂ => sorry
+    | .star r _ => sorry
+  | .star r lazy? => by
+    intro l' hl hm
+    cases hm with
+    | star_nil =>
+      -- True!
+      sorry
+    | stars u v s t h₁ h₂ => sorry
 
 theorem accept_mul_def (r₁ r₂ : Regex α) (loc : Loc σ) (k : Loc σ → Option (Loc σ)) :
   (r₁.mul r₂).accept loc k = (r₁.accept loc (fun loc' => r₂.accept loc' k)) := by

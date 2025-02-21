@@ -33,7 +33,7 @@ def left : Regex α → Regex α
 def reverse : Regex α → Regex α
   | epsilon => epsilon
   | pred c => pred c
-  | plus r₁ r₂ => plus r₂.reverse r₁.reverse
+  | plus r₁ r₂ => plus r₁.reverse r₂.reverse
   | mul r₁ r₂ => mul r₂.reverse r₁.reverse
   | star r lazy? => star r.reverse lazy?
 
@@ -74,28 +74,32 @@ decreasing_by all_goals (simp only [left, size]; omega)
 
 variable {σ : Type u} [EffectiveBooleanAlgebra α σ]
 
-inductive Matches : Regex α → Loc σ → Prop
+inductive Matches : Regex α → Loc σ → Loc σ → Prop
   | epsilon (l : Loc σ) :
-    Matches epsilon l
-  | pred (c : α) (d : σ) (v : List σ) :
+    Matches epsilon l l
+  | pred (c : α) (d : σ) (u v : List σ) :
     denote c d →
-    Matches (pred c) ([d], v)
-  | plus_left {r₁ r₂ : Regex α} (l : Loc σ) :
-    Matches r₁ l →
-    Matches (plus r₁ r₂) l
-  | plus_right {r₁ r₂ : Regex α} (l : Loc σ) :
-    Matches r₂ l →
-    Matches (plus r₁ r₂) l
-  | mul {r₁ r₂ : Regex α} (u v s : List σ) :
-    Matches r₁ (u, v ++ s) →
-    Matches r₂ (v.reverse, s) →
-    Matches (mul r₁ r₂) (v.reverse ++ u, s)
+    Matches (pred c) (u, d::v) (d::u, v)
+  | plus_left {r₁ r₂ : Regex α} (l₁ l₂ : Loc σ) :
+    Matches r₁ l₁ l₂ →
+    Matches (plus r₁ r₂) l₁ l₂
+  | plus_right {r₁ r₂ : Regex α} (l₁ l₂ : Loc σ) :
+    Matches r₂ l₁ l₂ →
+    Matches (plus r₁ r₂) l₁ l₂
+  | mul {r₁ r₂ : Regex α} (u v s t : List σ) :
+    Matches r₁ (u, v ++ s ++ t) (v.reverse ++ u, s ++ t) →
+    Matches r₂ (v.reverse ++ u, s ++ t) (s.reverse ++ v.reverse ++ u, t) →
+    Matches (mul r₁ r₂) (u, v ++ s ++ t) (s.reverse ++ v.reverse ++ u, t)
   | star_nil {r : Regex α} {lazy? : Bool} (l : Loc σ) :
-    Matches (star r lazy?) l
-  | stars {r : Regex α} {lazy? : Bool} (u v s : List σ) :
-    Matches r (u, v ++ s) →
-    Matches (star r lazy?) (v.reverse, s) →
-    Matches (star r lazy?) (v.reverse ++ u, s)
+    Matches (star r lazy?) l l
+  | stars {r : Regex α} {lazy? : Bool} (u v s t : List σ) :
+    Matches r (u, v ++ s ++ t) (v.reverse ++ u, s ++ t) →
+    Matches (star r lazy?) (v.reverse ++ u, s ++ t) (s.reverse ++ v.reverse ++ u, t) →
+    Matches (star r lazy?) (u, v ++ s ++ t) (s.reverse ++ v.reverse ++ u, t)
+
+theorem Matches_distrib (r₁ r₂ r₃ : Regex α) (l₁ l₂ : Loc σ) :
+  Matches (mul (plus r₁ r₂) r₃) l₁ l₂ → Matches (plus (mul r₁ r₃) (mul r₂ r₃)) l₁ l₂ := by
+  sorry
 
 @[simp]
 def deriv : Regex α → σ → Regex α
