@@ -43,25 +43,38 @@ theorem accept'_mul_def (r₁ r₂ : Regex α) (loc : Loc σ) (k : Loc σ → Op
   rw [accept']
 
 theorem accept'_longest (r : Regex α) (l loc : Loc σ) (h : accept' r l some = some loc) :
-  (∀ l' : Loc σ, l'.word = l.word → Matches r l l' → l'.pos ≤ loc.pos) :=
+  (∀ l' : Loc σ, Matches r l l' → l'.pos ≤ loc.pos) :=
   match r with
   | epsilon => by
-    intro l' hl hm
+    intro l' hm
     cases hm with
     | epsilon =>
       simp [accept'] at h
       rw [h]
   | pred c => by
-    intro l' hl hm
+    intro l' hm
     cases hm with
     | pred _ d u v hd =>
       simp [accept'] at h
       rw [h.right]
-  | plus r₁ r₂ => sorry
+  | plus r₁ r₂ => by
+    intro l' hm
+    simp [accept'] at h
+    cases hm with
+    | plus_left _ _ hm =>
+      rcases (matches_accept' _ _ _ hm) with ⟨loc', h'⟩
+      have ih := accept'_longest r₁ l loc' h' l' hm
+      -- True
+      sorry
+    | plus_right _ _ hm =>
+      rcases (matches_accept' _ _ _ hm) with ⟨loc', h'⟩
+      have ih := accept'_longest r₂ l loc' h' l' hm
+      -- True
+      sorry
   | mul r₁ r₂ =>
     match r₁ with
     | epsilon => by
-      intro l' hl hm
+      intro l' hm
       cases hm with
       | mul u v s t h₁ h₂ =>
         generalize hw : v ++ s ++ t = w
@@ -72,12 +85,12 @@ theorem accept'_longest (r : Regex α) (l loc : Loc σ) (h : accept' r l some = 
           simp at hu'
           simp [accept', hu'] at h
           simp [hu'] at h₂
-          have tmp := accept'_longest r₂ (u, s ++ t) loc h (s.reverse ++ u, t) (by simp) h₂
+          have tmp := accept'_longest r₂ (u, s ++ t) loc h (s.reverse ++ u, t) h₂
           simp at tmp
           simp [hu']
           exact tmp
     | pred c => by
-      intro l' hl hm
+      intro l' hm
       cases hm with
       | mul u v s t h₁ h₂ =>
         generalize hw : v ++ s ++ t = w
@@ -90,33 +103,38 @@ theorem accept'_longest (r : Regex α) (l loc : Loc σ) (h : accept' r l some = 
           rw [hw] at h h₂
           simp [accept'] at h
           simp at h₂
-          have tmp := accept'_longest r₂ (d::u, s ++ t) loc h.right (s.reverse ++ d :: u, t) (by simp) h₂
+          have tmp := accept'_longest r₂ (d::u, s ++ t) loc h.right (s.reverse ++ d :: u, t) h₂
           rw [hw]
           simp at *
           exact tmp
     | plus r₁₁ r₁₂ => by
-      intro l' hl hm
+      intro l' hm
       simp [accept'] at h
       rw [Matches_distrib] at hm
       cases hm with
       | plus_left _ _ hm =>
         rcases (matches_accept' _ _ _ hm) with ⟨loc', h'⟩
-        have tmp := accept'_longest (r₁₁.mul r₂) l loc' h' l' hl hm
+        have ih := accept'_longest (r₁₁.mul r₂) l loc' h' l' hm
+        -- True
         sorry
       | plus_right _ _ hm =>
         rcases (matches_accept' _ _ _ hm) with ⟨loc', h'⟩
-        have ih := accept'_longest (r₁₂.mul r₂) l loc' h' l' hl hm
+        have ih := accept'_longest (r₁₂.mul r₂) l loc' h' l' hm
+        -- True
         sorry
     | mul r₁₁ r₁₂ => by
-      intro l' hl hm
+      intro l' hm
       rw [Matches_mul_assoc] at hm
       simp [accept'] at h
       simp_rw [←accept'_mul_def] at h
-      have ih := accept'_longest (r₁₁.mul (r₁₂.mul r₂)) l loc h l' hl hm
+      have ih := accept'_longest (r₁₁.mul (r₁₂.mul r₂)) l loc h l' hm
       exact ih
-    | .star r _ => sorry
+    | .star r _ => by
+      intro l' hm
+      rw [accept', accept'] at h
+      sorry
   | .star r _ => by
-    intro l' hl hm
+    intro l' hm
     cases hm with
     | star_nil =>
       -- True!
