@@ -21,7 +21,7 @@ def Regex.accept' : Regex α → Loc σ → (Loc σ → Option (Loc σ)) → Opt
   | pred c, (u, d::v), k => if denote c d then k (d::u, v) else none
   | plus r₁ r₂, loc, k => (r₁.accept' loc k).max (r₂.accept' loc k)
   | mul r₁ r₂, loc, k => r₁.accept' loc (fun loc' => r₂.accept' loc' k)
-  | star r _, loc, k => (r.accept' loc (fun loc' => if loc'.right.length < loc.right.length then (r.star false).accept' loc' k else none)).max (k loc)
+  | star r lazy?, loc, k => (r.accept' loc (fun loc' => if loc'.right.length < loc.right.length then (r.star lazy?).accept' loc' k else none)).max (k loc)
 termination_by r loc => (r.size, loc.right.length)
 
 def Regex.gmatch : Regex α → List σ → Option (Loc σ)
@@ -131,7 +131,7 @@ theorem accept'_longest (r : Regex α) (l loc : Loc σ) (h : accept' r l some = 
       exact ih
     | .star r _ => by
       intro l' hm
-      rw [accept', accept'] at h
+      rw [accept'] at h
       sorry
   | .star r _ => by
     intro l' hm
