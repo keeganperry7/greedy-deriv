@@ -439,53 +439,10 @@ decreasing_by
     simp
 
 theorem accept_nil_not_nullable {r : Regex α} {s : List σ} {k : Loc σ → Option (Loc σ)} (hr : ¬r.nullable) :
-  r.accept (s, []) k = none :=
-  match r with
-  | epsilon => by simp at hr
-  | pred c => by rw [accept]
-  | plus r₁ r₂ => by
-    simp at hr
-    rw [accept, Option.or_eq_none]
-    rw [accept_nil_not_nullable, accept_nil_not_nullable]
-    simp only [and_self]
-    simp [hr.right]
-    simp [hr.left]
-  | mul r₁ r₂ => by
-    match r₁ with
-    | epsilon =>
-      rw [accept, accept]
-      simp at hr
-      rw [accept_nil_not_nullable]
-      simp [hr]
-    | pred c => rw [accept, accept]
-    | plus r₁₁ r₁₂ =>
-      rw [accept, accept]
-      rw [←accept_mul_def, ←accept_mul_def]
-      rw [accept_nil_not_nullable, accept_nil_not_nullable]
-      exact Option.or_self
-      simp_all
-      simp_all
-    | mul r₁₁ r₁₂ =>
-      rw [accept, accept]
-      simp_rw [←accept_mul_def]
-      rw [accept_nil_not_nullable]
-      simp at *
-      tauto
-    | .star r false =>
-      rw [accept, accept]
-      simp at *
-      rw [@accept_nil_not_nullable r₂, accept_cont_none]
-      simp only [and_self]
-      simp [hr]
-    | .star r true =>
-      rw [accept, accept]
-      simp at *
-      rw [@accept_nil_not_nullable r₂, accept_cont_none]
-      simp only [and_self]
-      simp [hr]
-  | .star _ _ => by simp at hr
-termination_by (r.size, r.left.size)
-decreasing_by all_goals (simp only [left, size]; omega)
+  r.accept (s, []) k = none := by
+  rw [accept_not_nullable _ _ _ _ none hr]
+  simp only [Loc.right, List.length_nil, not_lt_zero', ↓reduceIte]
+  apply accept_cont_none
 
 theorem accept_nil_nullable {r : Regex α} {s : List σ} {k : Loc σ → Option (Loc σ)} (hr : r.nullable) :
   r.accept (s, []) k = k (s, []) :=
