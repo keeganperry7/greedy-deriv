@@ -132,6 +132,17 @@ def matchEnd : Regex α → Loc σ → Option (Loc σ)
     | some loc => some loc
 termination_by _ loc => loc.right.length
 
+def matchEnd' : Regex α → Loc σ → Option (Loc σ)
+  | r, (u, []) =>
+    if r.nullable
+      then some (u, [])
+      else none
+  | r, (u, c :: v) =>
+    match matchEnd' (r.deriv c) (c :: u, v) with
+    | none => if r.nullable then some (u, c::v) else none
+    | some loc => some loc
+termination_by _ loc => loc.right.length
+
 def rmatch : Regex α → List σ → Option (Loc σ)
   | r, s => matchEnd r ([], s)
 
@@ -144,6 +155,93 @@ def rmatchAux : Regex α → List σ → List σ → Option (Span σ)
 
 def rmatch' : Regex α → List σ → Option (Span σ)
   | r, s => rmatchAux r s []
+
+theorem matchEnd'_matches (r : Regex α) (s₁ s₂ : List σ) (l : Loc σ) :
+  matchEnd' r (s₁, s₂) = some l → r.Matches (s₁, s₂) l := by
+  intro h
+  induction r with
+  | epsilon =>
+    cases s₂ with
+    | nil =>
+      rw [Regex.matchEnd'] at h
+      simp at h
+      rw [h]
+      apply Matches.epsilon
+    | cons x xs =>
+      sorry
+  | pred => sorry
+  | plus => sorry
+  | mul => sorry
+  | star =>
+    sorry
+
+theorem matches_suffix (r : Regex α) (l l' : Loc σ) :
+  Matches r l l' → l.pos ≤ l'.pos := by
+  intro h
+  induction r with
+  | epsilon =>
+    cases h
+    rfl
+  | pred => sorry
+  | plus => sorry
+  | mul => sorry
+  | star => sorry
+
+theorem matches_deriv (r : Regex α) (x : σ) (s₁ xs : List σ) (l l' : Loc σ) :
+  Matches (r.deriv x) (x :: s₁, xs) l →
+  Matches r (s₁, x::xs) l' →
+  l'.pos ≤ l.pos := by
+  intro h₁ h₂
+  induction r with
+  | epsilon =>
+    simp at h₁
+    cases h₁ with
+    | pred _ _ _ _ h => simp at h
+  | pred f =>
+    simp at h₁
+    split_ifs at h₁
+    · cases h₁
+      cases h₂
+      rfl
+    · cases h₁ with
+      | pred _ _ _ _ h => simp at h
+  | plus r₁ r₂ ih₁ ih₂ =>
+    simp at h₁
+    cases h₁ with
+    | plus_left _ _ h =>
+      apply ih₁ at h
+      sorry
+    | plus_right _ _ h =>
+      apply ih₂ at h
+      sorry
+  | mul => sorry
+  | star => sorry
+
+theorem matchEnd'_longest (r : Regex α) (s₁ s₂ : List σ) (l : Loc σ) (h : matchEnd' r (s₁, s₂) = some l) :
+  (∀ l' : Loc σ, Matches r (s₁, s₂) l' → l'.pos ≤ l.pos) := by
+  induction s₂ generalizing r s₁ with
+  | nil =>
+    intro l' hl'
+    rw [Regex.matchEnd'] at h
+    split_ifs at h
+    · simp at h
+      rw [←h]
+      simp
+      sorry
+  | cons x xs ih =>
+    intro l' hl'
+    rw [Regex.matchEnd'] at h
+    cases k : ((r.deriv x).matchEnd' (x :: s₁, xs)) with
+    | none =>
+      rw [k] at h
+      simp at h
+      sorry
+    | some v =>
+      rw [k] at h
+      simp at h
+      rw [h] at k
+      have tmp := matchEnd'_matches (r.deriv x) (x::s₁) xs l k
+      sorry
 
 theorem matchEnd_soundness (r : Regex α) (s₁ s₂ s₁' s₂' : List σ) :
   r.matchEnd (s₁, s₂) = some (s₁', s₂') → Loc.word (s₁, s₂) = Loc.word (s₁', s₂') := by

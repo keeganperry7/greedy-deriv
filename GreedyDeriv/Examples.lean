@@ -134,3 +134,8 @@ def r18 : Regex (BA Char) := (plus 'a' "aa").mul "aa"
 #eval r18.rmatch "aaa".toList
 #eval r18.gmatch "aaa".toList
 #eval r18.llmatch "aaa".toList
+
+-- (ε + b)*
+def r19 : Regex (BA Char) := (plus epsilon 'b').star false
+#eval r19.gmatch "bbb".toList
+#eval r19.rmatch "bbb".toList
