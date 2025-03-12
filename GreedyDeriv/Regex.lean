@@ -80,22 +80,22 @@ inductive Matches : Regex α → Loc σ → Loc σ → Prop
   | pred (c : α) (d : σ) (u v : List σ) :
     denote c d →
     Matches (pred c) (u, d::v) (d::u, v)
-  | plus_left {r₁ r₂ : Regex α} (l₁ l₂ : Loc σ) :
+  | plus_left {r₁ r₂ : Regex α} {l₁ l₂ : Loc σ} :
     Matches r₁ l₁ l₂ →
     Matches (plus r₁ r₂) l₁ l₂
-  | plus_right {r₁ r₂ : Regex α} (l₁ l₂ : Loc σ) :
+  | plus_right {r₁ r₂ : Regex α} {l₁ l₂ : Loc σ} :
     Matches r₂ l₁ l₂ →
     Matches (plus r₁ r₂) l₁ l₂
-  | mul {r₁ r₂ : Regex α} (u v s t : List σ) :
-    Matches r₁ (u, v ++ s ++ t) (v.reverse ++ u, s ++ t) →
-    Matches r₂ (v.reverse ++ u, s ++ t) (s.reverse ++ v.reverse ++ u, t) →
-    Matches (mul r₁ r₂) (u, v ++ s ++ t) (s.reverse ++ v.reverse ++ u, t)
-  | star_nil {r : Regex α} {lazy? : Bool} (l : Loc σ) :
+  | mul {r₁ r₂ : Regex α} (l₁ l₂ l₃ : Loc σ) :
+    Matches r₁ l₁ l₂ →
+    Matches r₂ l₂ l₃ →
+    Matches (mul r₁ r₂) l₁ l₃
+  | star_nil {r : Regex α} {lazy? : Bool} {l : Loc σ} :
     Matches (star r lazy?) l l
-  | stars {r : Regex α} {lazy? : Bool} (u v s t : List σ) :
-    Matches r (u, v ++ s ++ t) (v.reverse ++ u, s ++ t) →
-    Matches (star r lazy?) (v.reverse ++ u, s ++ t) (s.reverse ++ v.reverse ++ u, t) →
-    Matches (star r lazy?) (u, v ++ s ++ t) (s.reverse ++ v.reverse ++ u, t)
+  | stars {r : Regex α} {lazy? : Bool} (l₁ l₂ l₃ : Loc σ) :
+    Matches r l₁ l₂ →
+    Matches (star r lazy?) l₂ l₃ →
+    Matches (star r lazy?) l₁ l₃
 
 theorem Matches_distrib (r₁ r₂ r₃ : Regex α) (l₁ l₂ : Loc σ) :
   Matches (mul (plus r₁ r₂) r₃) l₁ l₂ ↔ Matches (plus (mul r₁ r₃) (mul r₂ r₃)) l₁ l₂ := by
@@ -120,6 +120,11 @@ def deriv : Regex α → σ → Regex α
   | star r true, c => (r.deriv c).mul (r.star true)
   termination_by r => (r.size, r.left.size)
   decreasing_by all_goals (simp only [left, size]; omega)
+
+@[simp]
+theorem deriv_star (r : Regex α) (lazy? : Bool) (c : σ) :
+  (r.star lazy?).deriv c = (r.deriv c).mul (r.star lazy?) := by
+  cases lazy? <;> simp
 
 def matchEnd : Regex α → Loc σ → Option (Loc σ)
   | r, (u, []) =>
@@ -178,16 +183,68 @@ theorem matchEnd'_matches (r : Regex α) (s₁ s₂ : List σ) (l : Loc σ) :
 theorem matches_suffix (r : Regex α) (l l' : Loc σ) :
   Matches r l l' → l.pos ≤ l'.pos := by
   intro h
-  induction r with
+  induction r generalizing l l' with
   | epsilon =>
     cases h
     rfl
-  | pred => sorry
-  | plus => sorry
-  | mul => sorry
-  | star => sorry
+  | pred c =>
+    cases h
+    simp
+  | plus r₁ r₂ ih₁ ih₂ =>
+    cases h with
+    | plus_left h => exact ih₁ l l' h
+    | plus_right h => exact ih₂ l l' h
+  | mul r₁ r₂ ih₁ ih₂ =>
+    cases h with
+    | mul _ k _ h₁ h₂ =>
+      apply ih₁ at h₁
+      apply ih₂ at h₂
+      exact Nat.le_trans h₁ h₂
+  | star r lazy? ih =>
+    cases h with
+    | star_nil => rfl
+    | stars _ k _ h h' =>
+      apply ih at h
+      sorry
 
-theorem matches_deriv (r : Regex α) (x : σ) (s₁ xs : List σ) (l l' : Loc σ) :
+theorem matches_deriv (r : Regex α) (x : σ) (s₁ xs : List σ) (l : Loc σ) :
+  Matches (r.deriv x) (x :: s₁, xs) l →
+  Matches r (s₁, x::xs) l := by
+  intro h
+  induction r generalizing l with
+  | epsilon =>
+    simp at h
+    cases h with
+    | pred _ _ _ _ h => simp at h
+  | pred f =>
+    simp at h
+    split_ifs at h with hf
+    · cases h
+      apply Matches.pred
+      exact hf
+    · cases h with
+      | pred _ _ _ _ h => simp at h
+  | plus r₁ r₂ ih₁ ih₂ =>
+    simp at h
+    cases h with
+    | plus_left h =>
+      apply ih₁ at h
+      exact Matches.plus_left h
+    | plus_right  h =>
+      apply ih₂ at h
+      exact Matches.plus_right h
+  | mul r₁ r₂ ih₁ ih₂ =>
+    sorry
+  | star r lazy? ih =>
+    simp at h
+    cases h with
+    | mul _ k _ h₁ h₂ =>
+      apply ih at h₁
+      apply Matches.stars
+      exact h₁
+      exact h₂
+
+theorem matches_deriv_le (r : Regex α) (x : σ) (s₁ xs : List σ) (l l' : Loc σ) :
   Matches (r.deriv x) (x :: s₁, xs) l →
   Matches r (s₁, x::xs) l' →
   l'.pos ≤ l.pos := by
@@ -195,27 +252,24 @@ theorem matches_deriv (r : Regex α) (x : σ) (s₁ xs : List σ) (l l' : Loc σ
   induction r with
   | epsilon =>
     simp at h₁
-    cases h₁ with
-    | pred _ _ _ _ h => simp at h
-  | pred f =>
+    cases h₁
+    simp at *
+  | pred c =>
     simp at h₁
-    split_ifs at h₁
+    split_ifs at h₁ with hc
+    · cases h₂
+      cases h₁
+      simp
     · cases h₁
-      cases h₂
-      rfl
-    · cases h₁ with
-      | pred _ _ _ _ h => simp at h
+      simp at *
   | plus r₁ r₂ ih₁ ih₂ =>
     simp at h₁
     cases h₁ with
-    | plus_left _ _ h =>
-      apply ih₁ at h
+    | plus_left h₁ =>
       sorry
-    | plus_right _ _ h =>
-      apply ih₂ at h
-      sorry
-  | mul => sorry
-  | star => sorry
+    | plus_right => sorry
+  | mul r₁ r₂ => sorry
+  | star r lazy => sorry
 
 theorem matchEnd'_longest (r : Regex α) (s₁ s₂ : List σ) (l : Loc σ) (h : matchEnd' r (s₁, s₂) = some l) :
   (∀ l' : Loc σ, Matches r (s₁, s₂) l' → l'.pos ≤ l.pos) := by

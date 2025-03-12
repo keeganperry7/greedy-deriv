@@ -34,13 +34,139 @@ def Regex.gmatch : Regex α → List σ → Option (Loc σ)
 def Regex.llmatch : Regex α → List σ → Option (Loc σ)
   | r, s => r.accept' ([], s) some
 
-theorem accept'_matches (r : Regex α) (l loc : Loc σ) :
-  accept' r l some = some loc → Matches r l loc := by
-  sorry
+theorem accept_matches_none (r : Regex α) (l : Loc σ) (k : Loc σ → Option (Loc σ)) :
+  accept r l k = none → ¬(∃ l', Matches r l l' ∧ (k l').isSome) :=
+  match r with
+  | epsilon => by
+    intro h hn
+    rw [accept] at h
+    rcases hn with ⟨l', h, hk⟩
+    cases h
+    rw [h] at hk
+    simp at hk
+  | pred c => by
+    intro h hn
+    match l with
+    | ⟨u, []⟩ =>
+      rcases hn with ⟨l', hn⟩
+      cases hn.left
+    | ⟨u, c::v⟩ =>
+      simp [accept] at h
+      rcases hn with ⟨l', hn⟩
+      cases hn.left with
+      | pred _ _ _ _ hd =>
+        apply h at hd
+        rw [hd] at hn
+        simp at hn
+  | plus r₁ r₂ => by
+    intro h
+    simp [accept] at h
+    rcases h with ⟨h₁, h₂⟩
+    intro hn
+    rcases hn with ⟨l', hn, hk⟩
+    cases hn with
+    | plus_left hn =>
+      apply accept_matches_none at h₁
+      absurd h₁
+      use l'
+    | plus_right hn =>
+      apply accept_matches_none at h₂
+      absurd h₂
+      use l'
+  | mul r₁ r₂ => sorry
+  | .star r lazy? => sorry
 
-theorem matches_accept' (r : Regex α) (l loc : Loc σ)  :
-  Matches r l loc → ∃ loc', accept' r l some = some loc' := by
-  sorry
+theorem accept_matches (r : Regex α) (l loc : Loc σ) (k : Loc σ → Option (Loc σ)) (f : Option (Loc σ) → Option (Loc σ) → Option (Loc σ)) (hf : ∀ x y, f x y = x ∨ f x y = y) :
+  accept'' r l k f = some loc → ∃ l', Matches r l l' ∧ k l' = some loc :=
+  match r with
+  | epsilon => by
+    intro h
+    rw [accept''] at h
+    exact ⟨l, Matches.epsilon l, h⟩
+  | pred c => by
+    intro h
+    match l with
+    | ⟨u, []⟩ => simp [accept''] at h
+    | ⟨u, d::v⟩ =>
+      simp [accept''] at h
+      rcases h with ⟨h₁, h₂⟩
+      refine ⟨(d::u, v), ?_, h₂⟩
+      apply Matches.pred
+      exact h₁
+  | plus r₁ r₂ => by
+    intro h
+    simp [accept''] at h
+    cases (hf (r₁.accept'' l k f) (r₂.accept'' l k f)) with
+    | inl h' =>
+      rw [h'] at h
+      apply accept_matches at h
+      rcases h with ⟨l', h₁, hk⟩
+      exact ⟨l', Matches.plus_left h₁, hk⟩
+      exact hf
+    | inr h' =>
+      rw [h'] at h
+      apply accept_matches at h
+      rcases h with ⟨l', h₂, hk⟩
+      exact ⟨l', Matches.plus_right h₂, hk⟩
+      exact hf
+  | mul r₁ r₂ => by
+    intro h
+    simp [accept''] at h
+    apply accept_matches at h
+    rcases h with ⟨l', h₁, h₂⟩
+    apply accept_matches at h₂
+    rcases h₂ with ⟨l'', h₂, hk⟩
+    refine ⟨l'', ?_, hk⟩
+    apply Matches.mul
+    exact h₁
+    exact h₂
+    exact hf
+    exact hf
+  | .star r false => by
+    intro h
+    rw [accept''] at h
+    simp at h
+    cases (hf (r.accept'' l (fun loc' ↦ if loc'.2.length < l.2.length then (r.star false).accept'' loc' k f else none) f) (k l)) with
+    | inl h' =>
+      rw [h'] at h
+      apply accept_matches at h
+      rcases h with ⟨l', h₁, h₂⟩
+      simp at h₂
+      rcases h₂ with ⟨hl, h₂⟩
+      apply accept_matches at h₂
+      rcases h₂ with ⟨l'', h₂, hk⟩
+      refine ⟨l'', ?_, hk⟩
+      apply Matches.stars
+      exact h₁
+      exact h₂
+      exact hf
+      exact hf
+    | inr h' =>
+      rw [h'] at h
+      exact ⟨l, Matches.star_nil, h⟩
+  | .star r true => by
+    intro h
+    rw [accept''] at h
+    simp at h
+    cases (hf (k l) (r.accept'' l (fun loc' ↦ if loc'.2.length < l.2.length then (r.star true).accept'' loc' k f else none) f)) with
+    | inl h' =>
+      rw [h'] at h
+      exact ⟨l, Matches.star_nil, h⟩
+    | inr h' =>
+      rw [h'] at h
+      apply accept_matches at h
+      rcases h with ⟨l', h₁, h₂⟩
+      simp at h₂
+      rcases h₂ with ⟨hl, h₂⟩
+      apply accept_matches at h₂
+      rcases h₂ with ⟨l'', h₂, hk⟩
+      refine ⟨l'', ?_, hk⟩
+      apply Matches.stars
+      exact h₁
+      exact h₂
+      exact hf
+      exact hf
+  termination_by (r.size, l.right.length)
 
 theorem accept''_mul_def (r₁ r₂ : Regex α) (loc : Loc σ) (k : Loc σ → Option (Loc σ)) (f : Option (Loc σ) → Option (Loc σ) → Option (Loc σ)) :
   (r₁.mul r₂).accept'' loc k f = r₁.accept'' loc (fun loc' => r₂.accept'' loc' k f) f := by
