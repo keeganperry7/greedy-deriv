@@ -125,3 +125,7 @@ def r14 : Regex (BA Char) := (star 'a' true).mul 'a'
 def r15 : Regex (BA Char) := (star 'a' true).mul 'b'
 #eval r15.rmatch "aab".toList
 #eval r15.gmatch "aab".toList
+
+-- (a|ε|b)*?b
+def r16 : Regex (BA Char) := (star (plus 'a' (plus epsilon 'b')) true).mul 'b'
+#eval r16.gmatch "aabb".toList

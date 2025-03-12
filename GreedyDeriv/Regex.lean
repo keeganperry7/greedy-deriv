@@ -74,28 +74,29 @@ decreasing_by all_goals (simp only [left, size]; omega)
 
 variable {σ : Type u} [EffectiveBooleanAlgebra α σ]
 
-inductive Matches : Regex α → Loc σ → Prop
+inductive PartialMatch : Regex α → Loc σ → Loc σ → Prop
   | epsilon (l : Loc σ) :
-    Matches epsilon l
-  | pred (c : α) (d : σ) (v : List σ) :
-    denote c d →
-    Matches (pred c) ([d], v)
-  | plus_left {r₁ r₂ : Regex α} (l : Loc σ) :
-    Matches r₁ l →
-    Matches (plus r₁ r₂) l
-  | plus_right {r₁ r₂ : Regex α} (l : Loc σ) :
-    Matches r₂ l →
-    Matches (plus r₁ r₂) l
-  | mul {r₁ r₂ : Regex α} (u v s : List σ) :
-    Matches r₁ (u, v ++ s) →
-    Matches r₂ (v.reverse, s) →
-    Matches (mul r₁ r₂) (v.reverse ++ u, s)
-  | star_nil {r : Regex α} {lazy? : Bool} (l : Loc σ) :
-    Matches (star r lazy?) l
-  | stars {r : Regex α} {lazy? : Bool} (u v s : List σ) :
-    Matches r (u, v ++ s) →
-    Matches (star r lazy?) (v.reverse, s) →
-    Matches (star r lazy?) (v.reverse ++ u, s)
+    PartialMatch epsilon l l
+  | pred (c : α) (d : σ) (u v : List σ) :
+    PartialMatch (pred c) ⟨u, d::v⟩ ⟨d::u, v⟩
+  | plus_left {r₁ r₂ : Regex α} {l l' : Loc σ} :
+    PartialMatch r₁ l l' →
+    PartialMatch (plus r₁ r₂) l l'
+  | plus_right {r₁ r₂ : Regex α} {l l' : Loc σ} :
+    PartialMatch r₂ l l' →
+    PartialMatch (plus r₁ r₂) l l'
+  | mul {r₁ r₂ : Regex α} (l k l' : Loc σ) :
+    PartialMatch r₁ l k →
+    PartialMatch r₂ k l' →
+    PartialMatch (mul r₁ r₂) l l'
+  | star_nil {r : Regex α} {lazy? : Bool} {l : Loc σ} :
+    PartialMatch (star r lazy?) l l
+  | stars {r : Regex α} {lazy? : Bool} (l k l' : Loc σ) :
+    PartialMatch r l k →
+    PartialMatch (star r lazy?) k l' →
+    PartialMatch (star r lazy?) l l'
+
+notation "(" r "," l ")" "→" l' => PartialMatch r l l'
 
 @[simp]
 def deriv : Regex α → σ → Regex α
