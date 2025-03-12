@@ -655,20 +655,17 @@ theorem accept_deriv_not_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc 
 termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
-theorem matchEnd_accept (r : Regex α) (s₁ s₂ : List σ) :
-  r.matchEnd (s₁, s₂) = r.accept (s₁, s₂) some := by
-  induction s₂ generalizing r s₁ with
-  | nil =>
+theorem matchEnd_accept (r : Regex α) (l : Loc σ) :
+  r.matchEnd l = r.accept l some := by
+  match l with
+  | ⟨u, []⟩ =>
+    rw [Regex.matchEnd, accept_nil]
+  | ⟨u, c::v⟩ =>
     rw [Regex.matchEnd]
-    split_ifs with hn
-    · rw [accept_nil_nullable hn]
-    · rw [accept_nil_not_nullable hn]
-  | cons x xs ih =>
-    rw [Regex.matchEnd]
-    cases k : ((r.prune.deriv x).matchEnd (x :: s₁, xs)) with
+    cases k : ((r.prune.deriv c).matchEnd (c :: u, v)) with
     | none =>
       simp only
-      rw [ih] at k
+      rw [matchEnd_accept] at k
       split_ifs with hn
       · apply accept_deriv_none_nullable at k
         rw [k]
@@ -680,10 +677,11 @@ theorem matchEnd_accept (r : Regex α) (s₁ s₂ : List σ) :
         simp only [Option.isSome_some, implies_true]
     | some v =>
       simp only
-      rw [ih] at k
+      rw [matchEnd_accept] at k
       apply accept_deriv at k
       rw [k]
       simp only [Option.isSome_some, implies_true]
+termination_by l.right
 
 theorem rmatch_gmatch (r : Regex α) (s : List σ) :
   r.rmatch s = r.gmatch s := by
