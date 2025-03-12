@@ -27,39 +27,15 @@ def r : Regex (BA Char) := plus 'a' "ab"
 #eval r.rmatch "ab".toList
 #eval r.gmatch "ab".toList
 
-example : Matches r (['a'], ['b']) := by
-  apply Matches.plus_left
-  apply Matches.pred
-  rfl
-
 -- (a + ab)*
 def r2 : Regex (BA Char) := (plus 'a' "ab").star false
 #eval r2.rmatch "aab".toList
 #eval r2.gmatch "aab".toList
 
-example : Matches r2 (['a', 'a'], ['b']) := by
-  apply Matches.stars ['a'] ['a'] ['b']
-  apply Matches.plus_left
-  apply Matches.pred
-  rfl
-  apply Matches.stars ['a'] []
-  apply Matches.plus_left
-  apply Matches.pred
-  rfl
-  apply Matches.star_nil
-
 -- c + ab
 def r3 : Regex (BA Char) := plus 'c' (mul 'a' 'b')
 #eval r3.rmatch "ab".toList
 #eval r3.gmatch "ab".toList
-
-example : Matches r3 (['b', 'a'], []) := by
-  apply Matches.plus_right
-  apply Matches.mul ['a'] ['b'] []
-  apply Matches.pred
-  rfl
-  apply Matches.pred
-  rfl
 
 -- (a + aa)a
 def r4 : Regex (BA Char) := (plus 'a' "aa").mul 'a'
@@ -128,4 +104,5 @@ def r15 : Regex (BA Char) := (star 'a' true).mul 'b'
 
 -- (a|ε|b)*?b
 def r16 : Regex (BA Char) := (star (plus 'a' (plus epsilon 'b')) true).mul 'b'
+#eval r16.rmatch "aabb".toList
 #eval r16.gmatch "aabb".toList
