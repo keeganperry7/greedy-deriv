@@ -75,9 +75,10 @@ decreasing_by all_goals (simp only [left, size]; omega)
 variable {σ : Type u} [EffectiveBooleanAlgebra α σ]
 
 inductive PartialMatch : Regex α → Loc σ → Loc σ → Prop
-  | epsilon (l : Loc σ) :
+  | epsilon {l : Loc σ} :
     PartialMatch epsilon l l
-  | pred (c : α) (d : σ) (u v : List σ) :
+  | pred {c : α} {d : σ} {u v : List σ} :
+    denote c d →
     PartialMatch (pred c) ⟨u, d::v⟩ ⟨d::u, v⟩
   | plus_left {r₁ r₂ : Regex α} {l l' : Loc σ} :
     PartialMatch r₁ l l' →
@@ -85,18 +86,18 @@ inductive PartialMatch : Regex α → Loc σ → Loc σ → Prop
   | plus_right {r₁ r₂ : Regex α} {l l' : Loc σ} :
     PartialMatch r₂ l l' →
     PartialMatch (plus r₁ r₂) l l'
-  | mul {r₁ r₂ : Regex α} (l k l' : Loc σ) :
+  | mul {r₁ r₂ : Regex α} {l k l' : Loc σ} :
     PartialMatch r₁ l k →
     PartialMatch r₂ k l' →
     PartialMatch (mul r₁ r₂) l l'
   | star_nil {r : Regex α} {lazy? : Bool} {l : Loc σ} :
     PartialMatch (star r lazy?) l l
-  | stars {r : Regex α} {lazy? : Bool} (l k l' : Loc σ) :
+  | stars {r : Regex α} {lazy? : Bool} {l k l' : Loc σ} :
     PartialMatch r l k →
     PartialMatch (star r lazy?) k l' →
     PartialMatch (star r lazy?) l l'
 
-notation "(" r "," l ")" "→" l' => PartialMatch r l l'
+notation:100 "(" r ", " l ")" " → " l':40 => PartialMatch r l l'
 
 @[simp]
 def deriv : Regex α → σ → Regex α
@@ -124,6 +125,63 @@ def matchEnd : Regex α → Loc σ → Option (Loc σ)
     | none => if r.nullable then some (u, c::v) else none
     | some loc => some loc
 termination_by _ loc => loc.right.length
+
+def matchEnd' : Regex α → Loc σ → Option (Loc σ)
+  | r, (u, []) =>
+    if r.nullable
+      then some (u, [])
+      else none
+  | r, (u, c :: v) =>
+    match matchEnd' (r.deriv c) (c :: u, v) with
+    | none => if r.nullable then some (u, c::v) else none
+    | some loc => some loc
+termination_by _ loc => loc.right.length
+
+theorem matches_nil (r : Regex α) (u : List σ) (l : Loc σ) :
+  (r, ⟨u, []⟩) → l → l = ⟨u, []⟩ := by
+  intro h
+  induction r generalizing l with
+  | epsilon =>
+    cases h
+    rfl
+  | pred c => cases h
+  | plus r₁ r₂ ih₁ ih₂ =>
+    cases h with
+    | plus_left h =>
+      apply ih₁
+      exact h
+    | plus_right h =>
+      apply ih₂
+      exact h
+  | mul r₁ r₂ ih₁ ih₂ =>
+    cases h with
+    | mul h₁ h₂ =>
+      apply ih₁ at h₁
+      rw [h₁] at h₂
+      apply ih₂
+      exact h₂
+  | star r lazy? ih =>
+    cases h with
+    | star_nil => rfl
+    | stars h₁ h₂ => sorry
+
+theorem matchEnd'_longest (r : Regex α) (l l' : Loc σ) (h : r.matchEnd' l = some l') :
+  (∀ k : Loc σ, (r, l) → k → k.pos ≤ l'.pos) := by
+  intro k hm
+  match l with
+  | ⟨u, []⟩ =>
+    simp [matchEnd'] at h
+    apply matches_nil at hm
+    rw [←h.right, hm]
+  | ⟨u, c::v⟩ =>
+    simp [matchEnd'] at h
+    match h':(r.deriv c).matchEnd' (c::u, v) with
+    | none =>
+      rw [h'] at h
+      simp at h
+      sorry
+    | some m =>
+      sorry
 
 def rmatch : Regex α → List σ → Option (Loc σ)
   | r, s => matchEnd r ([], s)

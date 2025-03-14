@@ -29,6 +29,75 @@ theorem accept_bot (loc : Loc σ) (k : Loc σ → Option (Loc σ)) :
   | ⟨_, []⟩ => simp [accept]
   | ⟨_, x::xs⟩ => simp [accept]
 
+theorem accept_matches (r : Regex α) (l l' : Loc σ) (k : Loc σ → Option (Loc σ)) :
+  r.accept l k = some l' → ∃ p, (r, l) → p ∧ k p = l' :=
+  match r with
+  | epsilon => by
+    intro h
+    simp [accept] at h
+    exact ⟨l, PartialMatch.epsilon, h⟩
+  | pred c => by
+    intro h
+    match l with
+    | ⟨u, []⟩ =>
+      simp [accept] at h
+    | ⟨u, d::v⟩ =>
+      simp [accept] at h
+      refine ⟨⟨d::u, v⟩, PartialMatch.pred h.left, h.right⟩
+  | plus r₁ r₂ => by
+    intro h
+    simp [accept] at h
+    cases h with
+    | inl h =>
+      apply accept_matches at h
+      rcases h with ⟨p, h, hk⟩
+      exact ⟨p, PartialMatch.plus_left h, hk⟩
+    | inr h =>
+      rcases h with ⟨_, h⟩
+      apply accept_matches at h
+      rcases h with ⟨p, h, hk⟩
+      exact ⟨p, PartialMatch.plus_right h, hk⟩
+  | mul r₁ r₂ => by
+    intro h
+    simp [accept] at h
+    apply accept_matches at h
+    rcases h with ⟨p, h₁, h₂⟩
+    apply accept_matches at h₂
+    rcases h₂ with ⟨p', h₂, hk⟩
+    exact ⟨p', PartialMatch.mul h₁ h₂, hk⟩
+  | .star r false => by
+    intro h
+    rw [accept] at h
+    simp at h
+    cases h with
+    | inl h =>
+      apply accept_matches at h
+      rcases h with ⟨p, h₁, h₂⟩
+      simp at h₂
+      rcases h₂ with ⟨hp, h₂⟩
+      apply accept_matches at h₂
+      rcases h₂ with ⟨p', h₂, hk⟩
+      refine ⟨p', PartialMatch.stars h₁ h₂, hk⟩
+    | inr h =>
+      rcases h with ⟨_, h⟩
+      exact ⟨l, PartialMatch.star_nil, h⟩
+  | .star r true => by
+    intro h
+    rw [accept] at h
+    simp at h
+    cases h with
+    | inl h => exact ⟨l, PartialMatch.star_nil, h⟩
+    | inr h =>
+      rcases h with ⟨_, h⟩
+      apply accept_matches at h
+      rcases h with ⟨p, h₁, h₂⟩
+      simp at h₂
+      rcases h₂ with ⟨hp, h₂⟩
+      apply accept_matches at h₂
+      rcases h₂ with ⟨p', h₂, hk⟩
+      exact ⟨p', PartialMatch.stars h₁ h₂, hk⟩
+termination_by (r.size, l.right.length)
+
 theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Option (Loc σ)) :
   r.accept (s₁, s₂) k = r.accept (s₁, s₂) (fun l' => if l'.right.length ≤ s₂.length then k l' else x) :=
   match r with
