@@ -77,7 +77,7 @@ theorem accept_matches (r : Regex α) (l l' : Loc σ) (k : Loc σ → Option (Lo
       rcases h₂ with ⟨hp, h₂⟩
       apply accept_matches at h₂
       rcases h₂ with ⟨p', h₂, hk⟩
-      refine ⟨p', PartialMatch.stars h₁ h₂, hk⟩
+      refine ⟨p', PartialMatch.stars hp h₁ h₂, hk⟩
     | inr h =>
       rcases h with ⟨_, h⟩
       exact ⟨l, PartialMatch.star_nil, h⟩
@@ -95,7 +95,7 @@ theorem accept_matches (r : Regex α) (l l' : Loc σ) (k : Loc σ → Option (Lo
       rcases h₂ with ⟨hp, h₂⟩
       apply accept_matches at h₂
       rcases h₂ with ⟨p', h₂, hk⟩
-      exact ⟨p', PartialMatch.stars h₁ h₂, hk⟩
+      exact ⟨p', PartialMatch.stars hp h₁ h₂, hk⟩
 termination_by (r.size, l.right.length)
 
 theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Option (Loc σ)) :

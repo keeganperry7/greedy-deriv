@@ -93,6 +93,7 @@ inductive PartialMatch : Regex α → Loc σ → Loc σ → Prop
   | star_nil {r : Regex α} {lazy? : Bool} {l : Loc σ} :
     PartialMatch (star r lazy?) l l
   | stars {r : Regex α} {lazy? : Bool} {l k l' : Loc σ} :
+    k.right.length < l.right.length →
     PartialMatch r l k →
     PartialMatch (star r lazy?) k l' →
     PartialMatch (star r lazy?) l l'
@@ -163,7 +164,7 @@ theorem matches_nil (r : Regex α) (u : List σ) (l : Loc σ) :
   | star r lazy? ih =>
     cases h with
     | star_nil => rfl
-    | stars h₁ h₂ => sorry
+    | stars hk h₁ h₂ => simp at hk
 
 theorem matchEnd'_longest (r : Regex α) (l l' : Loc σ) (h : r.matchEnd' l = some l') :
   (∀ k : Loc σ, (r, l) → k → k.pos ≤ l'.pos) := by
