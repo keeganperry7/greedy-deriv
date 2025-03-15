@@ -98,28 +98,28 @@ theorem accept_matches (r : Regex α) (l l' : Loc σ) (k : Loc σ → Option (Lo
       exact ⟨p', PartialMatch.stars hp h₁ h₂, hk⟩
 termination_by (r.size, l.right.length)
 
-theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Option (Loc σ)) :
-  r.accept (s₁, s₂) k = r.accept (s₁, s₂) (fun l' => if l'.right.length ≤ s₂.length then k l' else x) :=
+theorem accept_suffix (r : Regex α) {l : Loc σ} (k : Loc σ → Option (Loc σ)) (x : Option (Loc σ)) :
+  r.accept l k = r.accept l (fun l' => if l'.right.length ≤ l.right.length then k l' else x) :=
   match r with
   | epsilon => by
     simp [accept]
   | pred c => by
-    cases s₂ with
-    | nil => simp [accept]
-    | cons x xs => simp [accept]
+    match l with
+    | ⟨_, []⟩ => simp [accept]
+    | ⟨u, d::v⟩ => simp [accept]
   | plus r₁ r₂ => by
     simp only [accept, Loc.right]
     rw [accept_suffix r₁, accept_suffix r₂]
     rfl
   | mul r₁ r₂ => by
-    simp [accept]
+    simp only [accept, Loc.right]
     rw [accept_suffix r₁ _ x]
-    nth_rw 2 [accept_suffix r₁ _ x]
+    rw [accept_suffix r₁ (fun loc' ↦ r₂.accept loc' _) x]
     congr
     funext l
     split_ifs with hl
     · rw [accept_suffix r₂ _ x]
-      nth_rw 2 [accept_suffix r₂ _ x]
+      rw [accept_suffix r₂ (fun l' ↦ if l'.2.length ≤ _ then _ else _) x]
       congr
       funext l'
       split_ifs with hl' hn
@@ -130,12 +130,12 @@ theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Optio
     · rfl
   | .star r false => by
     rw [accept, accept]
-    simp only [Loc.right, le_refl, ↓reduceIte]
+    simp only [Loc.right, le_refl, reduceIte]
     congr
     funext loc'
     split_ifs with hl
     · rw [accept_suffix (r.star _) _ x]
-      nth_rw 2 [accept_suffix (r.star _) _ x]
+      rw [accept_suffix (r.star _) (fun l' ↦ if l'.2.length ≤ _ then _ else _) x]
       simp only [Prod.mk.eta, Loc.right]
       congr
       funext l
@@ -149,12 +149,12 @@ theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Optio
     · rfl
   | .star r true => by
     rw [accept, accept]
-    simp only [Loc.right, le_refl, ↓reduceIte]
+    simp only [Loc.right, le_refl, reduceIte]
     congr
     funext loc'
     split_ifs with hl
     · rw [accept_suffix (r.star _) _ x]
-      nth_rw 2 [accept_suffix (r.star _) _ x]
+      rw [accept_suffix (r.star _) (fun l' ↦ if l'.2.length ≤ _ then _ else _) x]
       simp only [Prod.mk.eta, Loc.right]
       congr
       funext l
@@ -166,11 +166,11 @@ theorem accept_suffix (r : Regex α) (k : Loc σ → Option (Loc σ)) (x : Optio
         exact Nat.le_of_lt hl
       · rfl
     · rfl
-termination_by (r.size, s₂.length)
+termination_by (r.size, l.right.length)
 
-theorem accept_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option (Loc σ)) (hn : r.nullable) (hk : (k (s₁, s₂)).isSome) :
-  (r.accept (s₁, s₂) k).isSome := by
-  induction r generalizing s₁ s₂ k with
+theorem accept_nullable (r : Regex α) (l : Loc σ) (k : Loc σ → Option (Loc σ)) (hn : r.nullable) (hk : (k l).isSome) :
+  (r.accept l k).isSome := by
+  induction r generalizing k with
   | epsilon =>
     rw [accept]
     exact hk

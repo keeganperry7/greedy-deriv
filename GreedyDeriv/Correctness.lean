@@ -5,8 +5,8 @@ variable {α σ : Type u} [EffectiveBooleanAlgebra α σ]
 
 open Regex
 
-theorem accept_deriv_cond (r : Regex α) (s₁ s₂ : List σ) (x : σ) (k : Loc σ → Option (Loc σ)) :
-  (r.deriv x).accept (x::s₁, s₂) k = r.accept (s₁, x::s₂) (fun l' ↦ if l'.right.length < (x::s₂).length then k l' else none) :=
+theorem accept_deriv_cond (r : Regex α) (u v : List σ) (c : σ) (k : Loc σ → Option (Loc σ)) :
+  (r.deriv c).accept (c::u, v) k = r.accept (u, c::v) (fun l' ↦ if l'.right.length < (c::v).length then k l' else none) :=
   match r with
   | epsilon => by simp [accept]
   | pred c => by
@@ -46,7 +46,7 @@ theorem accept_deriv_cond (r : Regex α) (s₁ s₂ : List σ) (x : σ) (k : Loc
       rw [accept_deriv_cond r]
       rw [accept_deriv_cond r₂]
       simp only [Loc.right, List.length_cons]
-      simp_rw [accept_suffix (r.star false) (fun loc' ↦ r₂.accept loc' fun l' ↦ if l'.2.length < s₂.length + 1 then k l' else none) none]
+      simp_rw [accept_suffix (r.star false) (fun loc' ↦ r₂.accept loc' fun l' ↦ if l'.2.length < v.length + 1 then k l' else none) none]
       congr
       funext loc
       split_ifs with hl
@@ -57,7 +57,7 @@ theorem accept_deriv_cond (r : Regex α) (s₁ s₂ : List σ) (x : σ) (k : Loc
         funext l
         split_ifs with h₁
         · rw [accept_suffix r₂ _ none]
-          nth_rw 2 [accept_suffix r₂ _ none]
+          rw [accept_suffix r₂ (fun l' ↦ if l'.2.length < _ then _ else _) none]
           simp only [Prod.mk.eta, Loc.right]
           congr
           funext l'
@@ -78,7 +78,7 @@ theorem accept_deriv_cond (r : Regex α) (s₁ s₂ : List σ) (x : σ) (k : Loc
       rw [accept_deriv_cond r]
       rw [accept_deriv_cond r₂]
       simp only [Loc.right, List.length_cons]
-      simp_rw [accept_suffix (r.star true) (fun loc' ↦ r₂.accept loc' fun l' ↦ if l'.2.length < s₂.length + 1 then k l' else none) none]
+      simp_rw [accept_suffix (r.star true) (fun loc' ↦ r₂.accept loc' fun l' ↦ if l'.2.length < v.length + 1 then k l' else none) none]
       simp only [Prod.mk.eta, Loc.right]
       congr
       funext loc
@@ -90,7 +90,7 @@ theorem accept_deriv_cond (r : Regex α) (s₁ s₂ : List σ) (x : σ) (k : Loc
         funext l
         split_ifs with h₁
         · rw [accept_suffix r₂ _ none]
-          nth_rw 2 [accept_suffix r₂ _ none]
+          rw [accept_suffix r₂ (fun l' ↦ if l'.2.length < _ then _ else _) none]
           simp only [Prod.mk.eta, Loc.right]
           congr
           funext l'
@@ -110,7 +110,7 @@ theorem accept_deriv_cond (r : Regex α) (s₁ s₂ : List σ) (x : σ) (k : Loc
     rw [accept, accept_deriv_cond r]
     simp only [Loc.right, List.length_cons]
     rw [accept]
-    simp_rw [accept_suffix (r.star false) (fun l' ↦ if l'.2.length < s₂.length + 1 then k l' else none) none]
+    simp_rw [accept_suffix (r.star false) (fun l' ↦ if l'.2.length < v.length + 1 then k l' else none) none]
     simp
     congr
     funext loc
@@ -132,7 +132,7 @@ theorem accept_deriv_cond (r : Regex α) (s₁ s₂ : List σ) (x : σ) (k : Loc
     rw [accept, accept_deriv_cond r]
     simp only [Loc.right, List.length_cons]
     rw [accept]
-    simp_rw [accept_suffix (r.star true) (fun l' ↦ if l'.2.length < s₂.length + 1 then k l' else none) none]
+    simp_rw [accept_suffix (r.star true) (fun l' ↦ if l'.2.length < v.length + 1 then k l' else none) none]
     simp
     congr
     funext loc
@@ -152,8 +152,8 @@ theorem accept_deriv_cond (r : Regex α) (s₁ s₂ : List σ) (x : σ) (k : Loc
 termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
-theorem accept_prune (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option (Loc σ)) (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) :
-  r.accept (s₁, s₂) k = r.prune.accept (s₁, s₂) k :=
+theorem accept_prune (r : Regex α) (l : Loc σ) (k : Loc σ → Option (Loc σ)) (hk : ∀ l', (k l').isSome) :
+  r.accept l k = r.prune.accept l k :=
   match r with
   | epsilon => by simp only [prune]
   | pred c => by simp only [prune]
@@ -201,14 +201,14 @@ theorem accept_prune (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option
       simp
       rw [accept, accept]
       rw [accept_suffix (r.star false) _ none]
-      nth_rw 2 [accept_suffix (r.star false) _ none]
+      rw [accept_suffix (r.star false) (fun loc' ↦ r₂.prune.accept loc' k) none]
 
       have hr₂_prune :
-        (fun l' ↦ if l'.right.length ≤ s₂.length then r₂.prune.accept l' k else none) =
-        (fun l' ↦ if l'.right.length ≤ s₂.length then r₂.accept l' k else none) := by
+        (fun l' ↦ if l'.right.length ≤ l.right.length then r₂.prune.accept l' k else none) =
+        (fun l' ↦ if l'.right.length ≤ l.right.length then r₂.accept l' k else none) := by
         funext l
         split_ifs with hl
-        · rw [accept_prune r₂ _ _ k hk]
+        · rw [accept_prune r₂ _ k hk]
         · rfl
 
       rw [hr₂_prune]
@@ -217,20 +217,20 @@ theorem accept_prune (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option
       split_ifs with hn
       · rw [accept, accept]
         rw [Option.or_of_isSome]
-        rw [accept_prune r₂ _ _ k hk]
+        rw [accept_prune r₂ _ k hk]
         apply accept_nullable
         exact hn
         apply hk
       · rw [accept, accept]
         rw [accept_suffix (r.star true) _ none]
-        nth_rw 2 [accept_suffix (r.star true) _ none]
+        rw [accept_suffix (r.star true) (fun loc' ↦ r₂.prune.accept loc' k) none]
 
         have hr₂_prune :
-          (fun l' ↦ if l'.right.length ≤ s₂.length then r₂.prune.accept l' k else none) =
-          (fun l' ↦ if l'.right.length ≤ s₂.length then r₂.accept l' k else none) := by
+          (fun l' ↦ if l'.right.length ≤ l.right.length then r₂.prune.accept l' k else none) =
+          (fun l' ↦ if l'.right.length ≤ l.right.length then r₂.accept l' k else none) := by
           funext l
           split_ifs with hl
-          · rw [accept_prune r₂ _ _ k hk]
+          · rw [accept_prune r₂ _ k hk]
           · rfl
 
         rw [hr₂_prune]
@@ -241,7 +241,7 @@ theorem accept_prune (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option
     rw [accept, accept]
     rw [Option.or_of_isSome]
     apply hk
-termination_by (s₂.length, r.size, r.left.size)
+termination_by (l.right.length, r.size, r.left.size)
 decreasing_by
   any_goals decreasing_tactic
   · simp
@@ -258,12 +258,12 @@ decreasing_by
     apply Prod.Lex.left
     simp
 
-theorem accept_deriv_none {r : Regex α} {x : σ} {s₁ s₂ : List σ} {k : Loc σ → Option (Loc σ)} (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) :
-  (r.prune.deriv x).accept (x::s₁, s₂) k = none →
-  r.accept (s₁, x::s₂) k = if r.nullable then k (s₁, x::s₂) else none :=
+theorem accept_deriv_none {r : Regex α} {c : σ} {u v : List σ} {k : Loc σ → Option (Loc σ)} (hk : ∀ l, (k l).isSome) :
+  (r.prune.deriv c).accept (c::u, v) k = none →
+  r.accept (u, c::v) k = if r.nullable then k (u, c::v) else none :=
   match r with
   | epsilon => by simp [accept]
-  | pred c => by
+  | pred d => by
     simp [accept]
     split_ifs with hc
     · simp [accept, hc]
@@ -339,7 +339,7 @@ theorem accept_deriv_none {r : Regex α} {x : σ} {s₁ s₂ : List σ} {k : Loc
       simp_rw [accept_mul_def] at h₁
       rw [accept, accept]
       simp
-      simp_rw [←accept_prune r₂ _ _ k hk] at h₁
+      simp_rw [←accept_prune r₂ _ k hk] at h₁
       rw [h₁, h₂, Option.none_or]
       exact hk
     | .star r true =>
@@ -357,7 +357,7 @@ theorem accept_deriv_none {r : Regex α} {x : σ} {s₁ s₂ : List σ} {k : Loc
         apply accept_deriv_none at h₁
         rw [accept_deriv_cond] at h₂
         simp_rw [accept_mul_def] at h₂
-        simp_rw [←accept_prune r₂ _ _ k hk] at h₂
+        simp_rw [←accept_prune r₂ _ k hk] at h₂
         simp at h₂
         rw [accept, accept, h₁]
         simp [hn, h₂]
@@ -376,12 +376,12 @@ theorem accept_deriv_none {r : Regex α} {x : σ} {s₁ s₂ : List σ} {k : Loc
 termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
-theorem accept_deriv (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option (Loc σ)) (loc : Loc σ) (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) :
-  (r.prune.deriv x).accept (x::s₁, s₂) k = some loc →
-  r.accept (s₁, x::s₂) k = some loc :=
+theorem accept_deriv (r : Regex α) (u v : List σ) (k : Loc σ → Option (Loc σ)) (loc : Loc σ) (hk : ∀ l', (k l').isSome) :
+  (r.prune.deriv c).accept (c::u, v) k = some loc →
+  r.accept (u, c::v) k = some loc :=
   match r with
   | epsilon => by simp [accept]
-  | pred c => by
+  | pred d => by
     simp [accept]
     split_ifs with hc
     · simp [accept, hc]
@@ -458,7 +458,7 @@ theorem accept_deriv (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option
       intro h
       simp at h
       simp_rw [accept_mul_def] at h
-      simp_rw [←accept_prune r₂ _ _ k hk] at h
+      simp_rw [←accept_prune r₂ _ k hk] at h
       cases h with
       | inl h =>
         rw [accept, accept]
@@ -478,11 +478,11 @@ theorem accept_deriv (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option
         rw [accept, accept, h]
         rw [Loc.right, List.length_cons, Option.some_or]
       · rw [Regex.deriv, accept, accept]
-        nth_rw 2 [accept_deriv_cond]
+        rw [accept_deriv_cond r]
         intro h
         simp_rw [Loc.right, List.length_cons, Option.or_eq_some] at h
         simp_rw [accept_mul_def] at h
-        simp_rw [←accept_prune r₂ _ _ k hk] at h
+        simp_rw [←accept_prune r₂ _ k hk] at h
         rw [accept, accept]
         rw [Loc.right, List.length_cons, Option.or_eq_some]
         cases h with
@@ -505,7 +505,7 @@ theorem accept_deriv (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option
 termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
-theorem accept_deriv_not_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option (Loc σ)) (hk : ∀ s₃ s₄, (k (s₃, s₄)).isSome) (hn : ¬r.nullable) :
+theorem accept_deriv_not_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc σ → Option (Loc σ)) (hk : ∀ l', (k l').isSome) (hn : ¬r.nullable) :
   (r.prune.deriv x).accept (x::s₁, s₂) k = r.accept (s₁, x::s₂) k :=
   match r with
   | pred c => by
@@ -561,22 +561,20 @@ theorem accept_deriv_not_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc 
       rw [prune, Regex.deriv]
       rw [accept, accept, accept_deriv_not_nullable r₂]
       rw [accept_deriv_cond, accept, accept]
-      simp_rw [accept_mul_def, ←accept_prune r₂ _ _ k hk]
+      simp_rw [accept_mul_def, ←accept_prune r₂ _ k hk]
       rw [Loc.right, List.length_cons]
       exact hk
       simp [hn]
     | .star r true =>
-      simp at *
-      split_ifs with hn'
-      · absurd hn
-        simp [hn']
-      · rw [Regex.deriv, accept, accept]
-        rw [accept_deriv_not_nullable r₂]
-        rw [accept_deriv_cond, accept, accept]
-        simp_rw [accept_mul_def, ←accept_prune r₂ _ _ k hk]
-        rw [Loc.right, List.length_cons]
-        exact hk
-        exact hn'
+      simp at hn
+      simp [hn]
+      rw [accept, accept]
+      rw [accept_deriv_not_nullable r₂]
+      rw [accept_deriv_cond, accept, accept]
+      simp_rw [accept_mul_def, ←accept_prune r₂ _ k hk]
+      rw [Loc.right, List.length_cons]
+      exact hk
+      simp [hn]
 termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
