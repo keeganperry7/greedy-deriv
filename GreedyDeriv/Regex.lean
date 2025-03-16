@@ -33,7 +33,7 @@ def left : Regex α → Regex α
 def reverse : Regex α → Regex α
   | epsilon => epsilon
   | pred c => pred c
-  | plus r₁ r₂ => plus r₂.reverse r₁.reverse
+  | plus r₁ r₂ => plus r₁.reverse r₂.reverse
   | mul r₁ r₂ => mul r₂.reverse r₁.reverse
   | star r lazy? => star r.reverse lazy?
 
@@ -74,6 +74,24 @@ decreasing_by all_goals (simp only [left, size]; omega)
 
 variable {σ : Type u} [EffectiveBooleanAlgebra α σ]
 
+@[simp]
+def deriv : Regex α → σ → Regex α
+  | epsilon, _ => pred ⊥
+  | pred c, d => if denote c d then epsilon else pred ⊥
+  | plus r₁ r₂, c => (r₁.deriv c).plus (r₂.deriv c)
+  | mul epsilon r₂, c => r₂.deriv c
+  | mul (pred c) r₂, d => if denote c d then r₂ else pred ⊥
+  | mul (plus r₁₁ r₁₂) r₂, c => plus ((r₁₁.mul r₂).deriv c) ((r₁₂.mul r₂).deriv c)
+  | mul (mul r₁₁ r₁₂) r₂, c => (r₁₁.mul (r₁₂.mul r₂)).deriv c
+  | mul (star r false) r₂, c => plus ((r.deriv c).mul ((r.star false).mul r₂)) (r₂.deriv c)
+  | mul (star r true) r₂, c => plus (r₂.deriv c) ((r.deriv c).mul ((r.star true).mul r₂))
+  | star r false, c => (r.deriv c).mul (r.star false)
+  | star r true, c => (r.deriv c).mul (r.star true)
+  termination_by r => (r.size, r.left.size)
+  decreasing_by all_goals (simp only [left, size]; omega)
+
+/-! ### Partial Matching -/
+
 inductive PartialMatch : Regex α → Loc σ → Loc σ → Prop
   | epsilon {l : Loc σ} :
     PartialMatch epsilon l l
@@ -99,44 +117,6 @@ inductive PartialMatch : Regex α → Loc σ → Loc σ → Prop
     PartialMatch (star r lazy?) l l'
 
 notation:100 "(" r ", " l ")" " → " l':40 => PartialMatch r l l'
-
-@[simp]
-def deriv : Regex α → σ → Regex α
-  | epsilon, _ => pred ⊥
-  | pred c, d => if denote c d then epsilon else pred ⊥
-  | plus r₁ r₂, c => (r₁.deriv c).plus (r₂.deriv c)
-  | mul epsilon r₂, c => r₂.deriv c
-  | mul (pred c) r₂, d => if denote c d then r₂ else pred ⊥
-  | mul (plus r₁₁ r₁₂) r₂, c => plus ((r₁₁.mul r₂).deriv c) ((r₁₂.mul r₂).deriv c)
-  | mul (mul r₁₁ r₁₂) r₂, c => (r₁₁.mul (r₁₂.mul r₂)).deriv c
-  | mul (star r false) r₂, c => plus ((r.deriv c).mul ((r.star false).mul r₂)) (r₂.deriv c)
-  | mul (star r true) r₂, c => plus (r₂.deriv c) ((r.deriv c).mul ((r.star true).mul r₂))
-  | star r false, c => (r.deriv c).mul (r.star false)
-  | star r true, c => (r.deriv c).mul (r.star true)
-  termination_by r => (r.size, r.left.size)
-  decreasing_by all_goals (simp only [left, size]; omega)
-
-def matchEnd : Regex α → Loc σ → Option (Loc σ)
-  | r, (u, []) =>
-    if r.nullable
-      then some (u, [])
-      else none
-  | r, (u, c :: v) =>
-    match matchEnd (r.prune.deriv c) (c :: u, v) with
-    | none => if r.nullable then some (u, c::v) else none
-    | some loc => some loc
-termination_by _ loc => loc.right.length
-
-def matchEnd' : Regex α → Loc σ → Option (Loc σ)
-  | r, (u, []) =>
-    if r.nullable
-      then some (u, [])
-      else none
-  | r, (u, c :: v) =>
-    match matchEnd' (r.deriv c) (c :: u, v) with
-    | none => if r.nullable then some (u, c::v) else none
-    | some loc => some loc
-termination_by _ loc => loc.right.length
 
 theorem matches_nil (r : Regex α) (u : List σ) (l : Loc σ) :
   (r, ⟨u, []⟩) → l → l = ⟨u, []⟩ := by
@@ -166,36 +146,30 @@ theorem matches_nil (r : Regex α) (u : List σ) (l : Loc σ) :
     | star_nil => rfl
     | stars hk h₁ h₂ => simp at hk
 
-theorem matchEnd'_longest (r : Regex α) (l l' : Loc σ) (h : r.matchEnd' l = some l') :
-  (∀ k : Loc σ, (r, l) → k → k.pos ≤ l'.pos) := by
-  intro k hm
-  match l with
-  | ⟨u, []⟩ =>
-    simp [matchEnd'] at h
-    apply matches_nil at hm
-    rw [←h.right, hm]
-  | ⟨u, c::v⟩ =>
-    simp [matchEnd'] at h
-    match h':(r.deriv c).matchEnd' (c::u, v) with
-    | none =>
-      rw [h'] at h
-      simp at h
-      sorry
-    | some m =>
-      sorry
+def matchEnd : Regex α → Loc σ → Option (Loc σ)
+  | r, (u, []) =>
+    if r.nullable
+      then some (u, [])
+      else none
+  | r, (u, c :: v) =>
+    match matchEnd (r.prune.deriv c) (c :: u, v) with
+    | none => if r.nullable then some (u, c::v) else none
+    | some loc => some loc
+termination_by _ loc => loc.right.length
 
 def rmatch : Regex α → List σ → Option (Loc σ)
   | r, s => matchEnd r ([], s)
 
-def rmatchAux : Regex α → List σ → List σ → Option (Span σ)
-  | r, [], k => if r.nullable then some ⟨k, [], []⟩ else none
-  | r, c::s, k =>
-    match matchEnd r ([], c::s) with
-    | none => r.rmatchAux s (c::k)
-    | some ⟨u, v⟩ => some ⟨k, u.reverse, v⟩
+def rmatchAux : Regex α → Span σ → Option (Span σ)
+  | r, (s, u, []) => if r.nullable then some ⟨s, u, []⟩ else none
+  | r, (s, u, c::v) =>
+    match r.matchEnd (u, c::v) with
+    | none => r.rmatchAux ⟨c::s, u, v⟩
+    | some ⟨u', v'⟩ => some ⟨s, u'.reverse, v'⟩
+  termination_by _ sp => sp.2.2
 
 def rmatch' : Regex α → List σ → Option (Span σ)
-  | r, s => rmatchAux r s []
+  | r, s => rmatchAux r ⟨[], [], s⟩
 
 theorem matchEnd_soundness (r : Regex α) (s₁ s₂ s₁' s₂' : List σ) :
   r.matchEnd (s₁, s₂) = some (s₁', s₂') → Loc.word (s₁, s₂) = Loc.word (s₁', s₂') := by
