@@ -56,7 +56,7 @@ def prune : Regex α → Regex α
       then r₁.prune
       else plus r₁.prune r₂.prune
   | mul epsilon r₂ => r₂.prune
-  | mul (pred c) r₂ => mul (pred c) r₂
+  | mul (pred c) r₂ => mul (pred c) r₂.prune
   | mul (plus r₁₁ r₁₂) r₂ =>
     if (r₁₁.mul r₂).nullable
       then (r₁₁.mul r₂).prune

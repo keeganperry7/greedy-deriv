@@ -177,7 +177,15 @@ theorem accept_prune (r : Regex α) (l : Loc σ) (k : Loc σ → Option (Loc σ)
       simp only [accept, prune]
       rw [accept_prune r₂]
       exact hk
-    | pred c => simp only [accept, prune]
+    | pred c =>
+      simp only [accept, prune]
+      rw [accept_suffix (pred c) (fun l' ↦ r₂.accept l' k) none]
+      rw [accept_suffix _ (fun l' ↦ r₂.prune.accept l' k) none]
+      congr
+      funext l
+      split_ifs with hl
+      · rw [accept_prune r₂ l k hk]
+      · rfl
     | plus r₁₁ r₁₂ =>
       simp [accept]
       split_ifs with hn
@@ -202,16 +210,11 @@ theorem accept_prune (r : Regex α) (l : Loc σ) (k : Loc σ → Option (Loc σ)
       rw [accept, accept]
       rw [accept_suffix (r.star false) _ none]
       rw [accept_suffix (r.star false) (fun loc' ↦ r₂.prune.accept loc' k) none]
-
-      have hr₂_prune :
-        (fun l' ↦ if l'.right.length ≤ l.right.length then r₂.prune.accept l' k else none) =
-        (fun l' ↦ if l'.right.length ≤ l.right.length then r₂.accept l' k else none) := by
-        funext l
-        split_ifs with hl
-        · rw [accept_prune r₂ _ k hk]
-        · rfl
-
-      rw [hr₂_prune]
+      congr
+      funext l
+      split_ifs with hl
+      · rw [accept_prune r₂ _ k hk]
+      · rfl
     | .star r true =>
       rw [prune]
       split_ifs with hn
@@ -224,16 +227,11 @@ theorem accept_prune (r : Regex α) (l : Loc σ) (k : Loc σ → Option (Loc σ)
       · rw [accept, accept]
         rw [accept_suffix (r.star true) _ none]
         rw [accept_suffix (r.star true) (fun loc' ↦ r₂.prune.accept loc' k) none]
-
-        have hr₂_prune :
-          (fun l' ↦ if l'.right.length ≤ l.right.length then r₂.prune.accept l' k else none) =
-          (fun l' ↦ if l'.right.length ≤ l.right.length then r₂.accept l' k else none) := by
-          funext l
-          split_ifs with hl
-          · rw [accept_prune r₂ _ k hk]
-          · rfl
-
-        rw [hr₂_prune]
+        congr
+        funext l
+        split_ifs with hl
+        · rw [accept_prune r₂ _ k hk]
+        · rfl
   | .star r false => by
     rw [prune]
   | .star r true => by
@@ -244,6 +242,10 @@ theorem accept_prune (r : Regex α) (l : Loc σ) (k : Loc σ → Option (Loc σ)
 termination_by (l.right.length, r.size, r.left.size)
 decreasing_by
   any_goals decreasing_tactic
+  · apply Prod.Lex.right'
+    exact hl
+    apply Prod.Lex.left
+    simp
   · simp
     apply Prod.Lex.right
     apply Prod.Lex.right'
@@ -296,7 +298,7 @@ theorem accept_deriv_none {r : Regex α} {c : σ} {u v : List σ} {k : Loc σ �
     | pred c =>
       simp [accept]
       split_ifs with hc
-      · simp [hc]
+      · simp [hc, accept_prune r₂ _ k hk]
       · simp [hc]
     | plus r₁₁ r₁₂ =>
       intro h
@@ -418,6 +420,7 @@ theorem accept_deriv (r : Regex α) (u v : List σ) (k : Loc σ → Option (Loc 
       simp [accept]
       split_ifs with hc
       · simp [accept, hc]
+        simp [accept_prune r₂ _ k hk]
       · simp [accept]
     | plus r₁₁ r₁₂ =>
       simp [accept]
@@ -536,7 +539,7 @@ theorem accept_deriv_not_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc 
     | pred c =>
       simp only [prune, Regex.deriv, accept]
       split_ifs
-      · rfl
+      · rw [accept_prune r₂ _ k hk]
       · apply accept_bot
     | plus r₁₁ r₁₂ =>
       simp [accept]

@@ -106,3 +106,7 @@ def r15 : Regex (BA Char) := (star 'a' true).mul 'b'
 def r16 : Regex (BA Char) := (star (plus 'a' (plus epsilon 'b')) true).mul 'b'
 #eval r16.rmatch "aabb".toList
 #eval r16.gmatch "aabb".toList
+
+def r17 : Regex (BA Char) := (star (plus "aa" "aaa") false)
+#eval r17.rmatch "aaa".toList
+#eval r17.gmatch "aaa".toList
