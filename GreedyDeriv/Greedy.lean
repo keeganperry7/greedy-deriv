@@ -1,15 +1,16 @@
 import GreedyDeriv.Regex
 import Mathlib.Tactic
 
-variable {α σ : Type u} [EffectiveBooleanAlgebra α σ]
+variable {α : Type u} [DecidableEq α]
 
 open Regex
 
 /-- Defintion 3 -/
-def Regex.accept : Regex α → Loc σ → (Loc σ → Option (Loc σ)) → Option (Loc σ)
+def Regex.accept : Regex α → Loc α → (Loc α → Option (Loc α)) → Option (Loc α)
+  | emptyset, _, _ => none
   | epsilon, loc, k => k loc
-  | pred _, (_, []), _ => none
-  | pred c, (u, d::v), k => if denote c d then k (d::u, v) else none
+  | char _, (_, []), _ => none
+  | char c, (u, d::v), k => if c = d then k (d::u, v) else none
   | plus r₁ r₂, loc, k => (r₁.accept loc k).or (r₂.accept loc k)
   | mul r₁ r₂, loc, k => r₁.accept loc (fun loc' => r₂.accept loc' k)
   | star r false, loc, k => (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then (r.star false).accept loc' k else none)).or (k loc)
@@ -17,28 +18,22 @@ def Regex.accept : Regex α → Loc σ → (Loc σ → Option (Loc σ)) → Opti
 termination_by r loc => (r.size, loc.right.length)
 
 /-- Definition 4 -/
-def Regex.gmatch : Regex α → List σ → Option (Loc σ)
+def Regex.gmatch : Regex α → List α → Option (Loc α)
   | r, s => r.accept ([], s) some
 
-theorem accept_mul_def (r₁ r₂ : Regex α) (loc : Loc σ) (k : Loc σ → Option (Loc σ)) :
+theorem accept_mul_def (r₁ r₂ : Regex α) (loc : Loc α) (k : Loc α → Option (Loc α)) :
   (r₁.mul r₂).accept loc k = (r₁.accept loc (fun loc' => r₂.accept loc' k)) := by
   rw [accept]
 
-@[simp]
-theorem accept_bot (loc : Loc σ) (k : Loc σ → Option (Loc σ)) :
-  (@pred α ⊥).accept loc k = none := by
-  match loc with
-  | ⟨_, []⟩ => simp [accept]
-  | ⟨_, x::xs⟩ => simp [accept]
-
-theorem accept_matches (r : Regex α) (l l' : Loc σ) (k : Loc σ → Option (Loc σ)) :
+theorem accept_matches (r : Regex α) (l l' : Loc α) (k : Loc α → Option (Loc α)) :
   r.accept l k = some l' → ∃ p, (r, l) → p ∧ k p = l' :=
   match r with
+  | emptyset => by simp [accept]
   | epsilon => by
     intro h
     simp [accept] at h
     exact ⟨l, PartialMatch.epsilon, h⟩
-  | pred c => by
+  | char c => by
     intro h
     match l with
     | ⟨u, []⟩ =>
@@ -101,12 +96,13 @@ theorem accept_matches (r : Regex α) (l l' : Loc σ) (k : Loc σ → Option (Lo
 termination_by (r.size, l.right.length)
 
 /-- Proposition 5 -/
-theorem accept_suffix (r : Regex α) {l : Loc σ} (k : Loc σ → Option (Loc σ)) (x : Option (Loc σ)) :
+theorem accept_suffix (r : Regex α) {l : Loc α} (k : Loc α → Option (Loc α)) (x : Option (Loc α)) :
   r.accept l k = r.accept l (fun l' => if l'.right.length ≤ l.right.length then k l' else x) :=
   match r with
+  | emptyset => by simp [accept]
   | epsilon => by
     simp [accept]
-  | pred c => by
+  | char c => by
     match l with
     | ⟨_, []⟩ => simp [accept]
     | ⟨u, d::v⟩ => simp [accept]
@@ -172,13 +168,14 @@ theorem accept_suffix (r : Regex α) {l : Loc σ} (k : Loc σ → Option (Loc σ
 termination_by (r.size, l.right.length)
 
 /-- Proposition 6 -/
-theorem accept_nullable (r : Regex α) (l : Loc σ) (k : Loc σ → Option (Loc σ)) (hn : r.nullable) (hk : (k l).isSome) :
+theorem accept_nullable (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc α)) (hn : r.nullable) (hk : (k l).isSome) :
   (r.accept l k).isSome := by
   induction r generalizing k with
+  | emptyset => simp at hn
   | epsilon =>
     rw [accept]
     exact hk
-  | pred c => simp only [nullable, Bool.false_eq_true] at hn
+  | char c => simp only [nullable, Bool.false_eq_true] at hn
   | plus r₁ r₂ ih₁ ih₂ =>
     rw [nullable, Bool.or_eq_true] at hn
     cases hn with
@@ -214,11 +211,12 @@ theorem accept_nullable (r : Regex α) (l : Loc σ) (k : Loc σ → Option (Loc 
       exact Or.inl hk
 
 /-- Proposition 7 -/
-theorem accept_nil {r : Regex α} {s : List σ} {k : Loc σ → Option (Loc σ)} :
+theorem accept_nil {r : Regex α} {s : List α} {k : Loc α → Option (Loc α)} :
   r.accept (s, []) k = if r.nullable then k (s, []) else none := by
   induction r generalizing k with
+  | emptyset => simp [accept]
   | epsilon => simp [accept]
-  | pred c => simp [accept]
+  | char c => simp [accept]
   | plus r₁ r₂ ih₁ ih₂ =>
     simp [accept]
     split_ifs with hn
