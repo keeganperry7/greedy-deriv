@@ -51,7 +51,7 @@ def nullable : Regex α → Bool
   | mul r₁ r₂ => r₁.nullable && r₂.nullable
   | star _ _ => true
 
-/-- Definition 9 -/
+/-- Definition 10 -/
  @[simp]
 def prune : Regex α → Regex α
   | emptyset => emptyset
@@ -156,7 +156,7 @@ theorem matches_nil {α : Type u} (r : Regex α) (u : List α) (l : Loc α) :
     | star_nil => rfl
     | stars hk h₁ h₂ => simp at hk
 
-/-- Definition 10 -/
+/-- Definition 11 -/
 def matchEnd : Regex α → Loc α → Option (Loc α)
   | r, (u, []) =>
     if r.nullable

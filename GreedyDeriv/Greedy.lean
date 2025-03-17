@@ -25,6 +25,7 @@ theorem accept_mul_def (r₁ r₂ : Regex α) (loc : Loc α) (k : Loc α → Opt
   (r₁.mul r₂).accept loc k = (r₁.accept loc (fun loc' => r₂.accept loc' k)) := by
   rw [accept]
 
+/-- Proposition 5 -/
 theorem accept_matches (r : Regex α) (l l' : Loc α) (k : Loc α → Option (Loc α)) :
   r.accept l k = some l' → ∃ p, (r, l) → p ∧ k p = l' :=
   match r with
@@ -95,7 +96,7 @@ theorem accept_matches (r : Regex α) (l l' : Loc α) (k : Loc α → Option (Lo
       exact ⟨p', PartialMatch.stars hp h₁ h₂, hk⟩
 termination_by (r.size, l.right.length)
 
-/-- Proposition 5 -/
+/-- Proposition 6 -/
 theorem accept_suffix (r : Regex α) {l : Loc α} (k : Loc α → Option (Loc α)) (x : Option (Loc α)) :
   r.accept l k = r.accept l (fun l' => if l'.right.length ≤ l.right.length then k l' else x) :=
   match r with
@@ -167,7 +168,7 @@ theorem accept_suffix (r : Regex α) {l : Loc α} (k : Loc α → Option (Loc α
     · rfl
 termination_by (r.size, l.right.length)
 
-/-- Proposition 6 -/
+/-- Proposition 7 -/
 theorem accept_nullable (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc α)) (hn : r.nullable) (hk : (k l).isSome) :
   (r.accept l k).isSome := by
   induction r generalizing k with
@@ -210,7 +211,7 @@ theorem accept_nullable (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc 
       simp
       exact Or.inl hk
 
-/-- Proposition 7 -/
+/-- Proposition 8 -/
 theorem accept_nil {r : Regex α} {s : List α} {k : Loc α → Option (Loc α)} :
   r.accept (s, []) k = if r.nullable then k (s, []) else none := by
   induction r generalizing k with
