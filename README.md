@@ -8,7 +8,6 @@ expression matching engine supporting JavaScript match semantics.
 - `Greedy`: defines the greedy match semantics, along with proofs for properties
   of the semantics.
 - `Locations`: defines locations and spans.
-- `EffectiveBooleanAlgebra`: defines effective boolean algebras.
 - `Correctness`: proves the equivalence between the derivative matching
   algorithm and the greedy match semantics.
 - `Examples`: examples using the matching algorithm.
