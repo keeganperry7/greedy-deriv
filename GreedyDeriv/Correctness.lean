@@ -5,6 +5,7 @@ variable {α σ : Type u} [EffectiveBooleanAlgebra α σ]
 
 open Regex
 
+/-- Theorem 11 -/
 theorem accept_prune (r : Regex α) (l : Loc σ) (k : Loc σ → Option (Loc σ)) (hk : ∀ l', (k l').isSome) :
   r.accept l k = r.prune.accept l k :=
   match r with
@@ -113,6 +114,7 @@ decreasing_by
     apply Prod.Lex.left
     simp
 
+/-- Theorem 12 -/
 theorem accept_deriv_cond (r : Regex α) (u v : List σ) (c : σ) (k : Loc σ → Option (Loc σ)) :
   (r.deriv c).accept (c::u, v) k = r.accept (u, c::v) (fun l' ↦ if l'.right.length < (c::v).length then k l' else none) :=
   match r with
@@ -260,7 +262,7 @@ theorem accept_deriv_cond (r : Regex α) (u v : List σ) (c : σ) (k : Loc σ �
 termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
-
+/-- Theorem 13 -/
 theorem accept_deriv_none {r : Regex α} {c : σ} {u v : List σ} {k : Loc σ → Option (Loc σ)} (hk : ∀ l, (k l).isSome) :
   (r.prune.deriv c).accept (c::u, v) k = none →
   r.accept (u, c::v) k = if r.nullable then k (u, c::v) else none :=
@@ -379,6 +381,7 @@ theorem accept_deriv_none {r : Regex α} {c : σ} {u v : List σ} {k : Loc σ �
 termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
+/-- Theorem 14 -/
 theorem accept_deriv (r : Regex α) (u v : List σ) (k : Loc σ → Option (Loc σ)) (loc : Loc σ) (hk : ∀ l', (k l').isSome) :
   (r.prune.deriv c).accept (c::u, v) k = some loc →
   r.accept (u, c::v) k = some loc :=
@@ -582,6 +585,7 @@ theorem accept_deriv_not_nullable (r : Regex α) (s₁ s₂ : List σ) (k : Loc 
 termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
+/-- Theorem 15 -/
 theorem matchEnd_accept (r : Regex α) (l : Loc σ) :
   r.matchEnd l = r.accept l some := by
   match l with

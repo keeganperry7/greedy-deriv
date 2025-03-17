@@ -5,6 +5,7 @@ variable {α σ : Type u} [EffectiveBooleanAlgebra α σ]
 
 open Regex
 
+/-- Defintion 3 -/
 def Regex.accept : Regex α → Loc σ → (Loc σ → Option (Loc σ)) → Option (Loc σ)
   | epsilon, loc, k => k loc
   | pred _, (_, []), _ => none
@@ -15,6 +16,7 @@ def Regex.accept : Regex α → Loc σ → (Loc σ → Option (Loc σ)) → Opti
   | star r true, loc, k => (k loc).or (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then (r.star true).accept loc' k else none))
 termination_by r loc => (r.size, loc.right.length)
 
+/-- Definition 4 -/
 def Regex.gmatch : Regex α → List σ → Option (Loc σ)
   | r, s => r.accept ([], s) some
 
@@ -98,6 +100,7 @@ theorem accept_matches (r : Regex α) (l l' : Loc σ) (k : Loc σ → Option (Lo
       exact ⟨p', PartialMatch.stars hp h₁ h₂, hk⟩
 termination_by (r.size, l.right.length)
 
+/-- Proposition 5 -/
 theorem accept_suffix (r : Regex α) {l : Loc σ} (k : Loc σ → Option (Loc σ)) (x : Option (Loc σ)) :
   r.accept l k = r.accept l (fun l' => if l'.right.length ≤ l.right.length then k l' else x) :=
   match r with
@@ -168,6 +171,7 @@ theorem accept_suffix (r : Regex α) {l : Loc σ} (k : Loc σ → Option (Loc σ
     · rfl
 termination_by (r.size, l.right.length)
 
+/-- Proposition 6 -/
 theorem accept_nullable (r : Regex α) (l : Loc σ) (k : Loc σ → Option (Loc σ)) (hn : r.nullable) (hk : (k l).isSome) :
   (r.accept l k).isSome := by
   induction r generalizing k with
@@ -209,6 +213,7 @@ theorem accept_nullable (r : Regex α) (l : Loc σ) (k : Loc σ → Option (Loc 
       simp
       exact Or.inl hk
 
+/-- Proposition 7 -/
 theorem accept_nil {r : Regex α} {s : List σ} {k : Loc σ → Option (Loc σ)} :
   r.accept (s, []) k = if r.nullable then k (s, []) else none := by
   induction r generalizing k with
