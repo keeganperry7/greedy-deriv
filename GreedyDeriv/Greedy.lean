@@ -75,7 +75,7 @@ theorem accept_matches (r : Regex α) (l l' : Loc α) (k : Loc α → Option (Lo
       rcases h₂ with ⟨hp, h₂⟩
       apply accept_matches at h₂
       rcases h₂ with ⟨p', h₂, hk⟩
-      refine ⟨p', PartialMatch.stars hp h₁ h₂, hk⟩
+      refine ⟨p', PartialMatch.stars h₁ h₂, hk⟩
     | inr h =>
       rcases h with ⟨_, h⟩
       exact ⟨l, PartialMatch.star_nil, h⟩
@@ -93,7 +93,7 @@ theorem accept_matches (r : Regex α) (l l' : Loc α) (k : Loc α → Option (Lo
       rcases h₂ with ⟨hp, h₂⟩
       apply accept_matches at h₂
       rcases h₂ with ⟨p', h₂, hk⟩
-      exact ⟨p', PartialMatch.stars hp h₁ h₂, hk⟩
+      exact ⟨p', PartialMatch.stars h₁ h₂, hk⟩
 termination_by (r.size, l.right.length)
 
 /-- Proposition 6 -/

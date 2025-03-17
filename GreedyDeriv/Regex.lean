@@ -120,41 +120,11 @@ inductive PartialMatch : Regex α → Loc α → Loc α → Prop
   | star_nil {r : Regex α} {lazy? : Bool} {l : Loc α} :
     PartialMatch (star r lazy?) l l
   | stars {r : Regex α} {lazy? : Bool} {l k l' : Loc α} :
-    k.right.length < l.right.length →
     PartialMatch r l k →
     PartialMatch (star r lazy?) k l' →
     PartialMatch (star r lazy?) l l'
 
 notation:100 "(" r ", " l ")" " → " l':40 => PartialMatch r l l'
-
-theorem matches_nil {α : Type u} (r : Regex α) (u : List α) (l : Loc α) :
-  (r, ⟨u, []⟩) → l → l = ⟨u, []⟩ := by
-  intro h
-  induction r generalizing l with
-  | emptyset => cases h
-  | epsilon =>
-    cases h
-    rfl
-  | char c => cases h
-  | plus r₁ r₂ ih₁ ih₂ =>
-    cases h with
-    | plus_left h =>
-      apply ih₁
-      exact h
-    | plus_right h =>
-      apply ih₂
-      exact h
-  | mul r₁ r₂ ih₁ ih₂ =>
-    cases h with
-    | mul h₁ h₂ =>
-      apply ih₁ at h₁
-      rw [h₁] at h₂
-      apply ih₂
-      exact h₂
-  | star r lazy? ih =>
-    cases h with
-    | star_nil => rfl
-    | stars hk h₁ h₂ => simp at hk
 
 /-- Definition 11 -/
 def matchEnd : Regex α → Loc α → Option (Loc α)
