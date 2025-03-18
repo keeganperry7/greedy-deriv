@@ -35,13 +35,9 @@ theorem accept_prune (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc α)
       exact hk
     | char c =>
       simp only [accept, prune]
-      rw [accept_suffix (char c) (fun l' ↦ r₂.accept l' k) none]
-      rw [accept_suffix _ (fun l' ↦ r₂.prune.accept l' k) none]
       congr
       funext l
-      split_ifs with hl
-      · rw [accept_prune r₂ l k hk]
-      · rfl
+      rw [accept_prune r₂ l k hk]
     | plus r₁₁ r₁₂ =>
       simp [accept]
       split_ifs with hn
@@ -64,13 +60,9 @@ theorem accept_prune (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc α)
     | .star r false =>
       simp
       rw [accept, accept]
-      rw [accept_suffix (r.star false) _ none]
-      rw [accept_suffix (r.star false) (fun loc' ↦ r₂.prune.accept loc' k) none]
       congr
       funext l
-      split_ifs with hl
-      · rw [accept_prune r₂ _ k hk]
-      · rfl
+      rw [accept_prune r₂ _ k hk]
     | .star r true =>
       rw [prune]
       split_ifs with hn
@@ -81,13 +73,9 @@ theorem accept_prune (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc α)
         exact hn
         apply hk
       · rw [accept, accept]
-        rw [accept_suffix (r.star true) _ none]
-        rw [accept_suffix (r.star true) (fun loc' ↦ r₂.prune.accept loc' k) none]
         congr
         funext l
-        split_ifs with hl
-        · rw [accept_prune r₂ _ k hk]
-        · rfl
+        rw [accept_prune r₂ _ k hk]
   | .star r false => by
     rw [prune]
   | .star r true => by
@@ -95,26 +83,8 @@ theorem accept_prune (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc α)
     rw [accept, accept]
     rw [Option.or_of_isSome]
     apply hk
-termination_by (l.right.length, r.size, r.left.size)
-decreasing_by
-  any_goals decreasing_tactic
-  · apply Prod.Lex.right'
-    exact hl
-    apply Prod.Lex.left
-    simp
-  · simp
-    apply Prod.Lex.right
-    apply Prod.Lex.right'
-    omega
-    omega
-  · apply Prod.Lex.right'
-    exact hl
-    apply Prod.Lex.left
-    simp
-  · apply Prod.Lex.right'
-    exact hl
-    apply Prod.Lex.left
-    simp
+termination_by (r.size, r.left.size)
+decreasing_by all_goals (simp only [left, size]; omega)
 
 /-- Theorem 13 -/
 theorem accept_deriv_cond (r : Regex α) (u v : List α) (c : α) (k : Loc α → Option (Loc α)) :
