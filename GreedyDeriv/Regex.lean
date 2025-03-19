@@ -137,17 +137,3 @@ def matchEnd : Regex α → Loc α → Option (Loc α)
     | none => if r.nullable then some (u, c::v) else none
     | some loc => some loc
 termination_by _ loc => loc.right.length
-
-def rmatch : Regex α → List α → Option (Loc α)
-  | r, s => matchEnd r ([], s)
-
-def rmatchAux : Regex α → Span α → Option (Span α)
-  | r, (s, u, []) => if r.nullable then some ⟨s, u, []⟩ else none
-  | r, (s, u, c::v) =>
-    match r.matchEnd (u, c::v) with
-    | none => r.rmatchAux ⟨c::s, u, v⟩
-    | some ⟨u', v'⟩ => some ⟨s, u'.reverse, v'⟩
-  termination_by _ sp => sp.2.2
-
-def rmatch' : Regex α → List α → Option (Span α)
-  | r, s => rmatchAux r ⟨[], [], s⟩

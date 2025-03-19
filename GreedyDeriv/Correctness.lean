@@ -495,8 +495,9 @@ termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
 /-- Theorem 16 -/
-theorem matchEnd_accept (r : Regex α) (l : Loc α) :
-  r.matchEnd l = r.accept l some := by
+theorem matchEnd_gmatch (r : Regex α) (l : Loc α) :
+  r.matchEnd l = r.gmatch l := by
+  rw [gmatch]
   match l with
   | ⟨u, []⟩ =>
     rw [Regex.matchEnd, accept_nil]
@@ -505,7 +506,7 @@ theorem matchEnd_accept (r : Regex α) (l : Loc α) :
     cases k : ((r.prune.deriv c).matchEnd (c :: u, v)) with
     | none =>
       simp only
-      rw [matchEnd_accept] at k
+      rw [matchEnd_gmatch] at k
       split_ifs with hn
       · apply accept_deriv_none at k
         simp [k, hn]
@@ -515,13 +516,8 @@ theorem matchEnd_accept (r : Regex α) (l : Loc α) :
         simp only [Option.isSome_some, implies_true]
     | some v =>
       simp only
-      rw [matchEnd_accept] at k
+      rw [matchEnd_gmatch] at k
       apply accept_deriv at k
       rw [k]
       simp only [Option.isSome_some, implies_true]
 termination_by l.right
-
-theorem rmatch_gmatch (r : Regex α) (s : List α) :
-  r.rmatch s = r.gmatch s := by
-  rw [Regex.rmatch, Regex.gmatch]
-  apply matchEnd_accept

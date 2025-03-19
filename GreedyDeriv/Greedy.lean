@@ -18,8 +18,8 @@ def Regex.accept : Regex α → Loc α → (Loc α → Option (Loc α)) → Opti
 termination_by r loc => (r.size, loc.right.length)
 
 /-- Definition 4 -/
-def Regex.gmatch : Regex α → List α → Option (Loc α)
-  | r, s => r.accept ([], s) some
+def Regex.gmatch : Regex α → Loc α → Option (Loc α)
+  | r, l => r.accept l some
 
 theorem accept_mul_def (r₁ r₂ : Regex α) (loc : Loc α) (k : Loc α → Option (Loc α)) :
   (r₁.mul r₂).accept loc k = (r₁.accept loc (fun loc' => r₂.accept loc' k)) := by
