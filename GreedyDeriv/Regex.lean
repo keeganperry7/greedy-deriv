@@ -104,9 +104,8 @@ def deriv : Regex α → α → Regex α
 inductive PartialMatch : Regex α → Loc α → Loc α → Prop
   | epsilon {l : Loc α} :
     PartialMatch epsilon l l
-  | pred {c : α} {d : α} {u v : List α} :
-    c = d →
-    PartialMatch (char c) ⟨u, d::v⟩ ⟨d::u, v⟩
+  | char {c : α} {u v : List α} :
+    PartialMatch (char c) ⟨u, c::v⟩ ⟨c::u, v⟩
   | plus_left {r₁ r₂ : Regex α} {l l' : Loc α} :
     PartialMatch r₁ l l' →
     PartialMatch (plus r₁ r₂) l l'

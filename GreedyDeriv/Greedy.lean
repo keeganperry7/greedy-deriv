@@ -41,7 +41,8 @@ theorem accept_matches (r : Regex α) (l l' : Loc α) (k : Loc α → Option (Lo
       simp [accept] at h
     | ⟨u, d::v⟩ =>
       simp [accept] at h
-      refine ⟨⟨d::u, v⟩, PartialMatch.pred h.left, h.right⟩
+      rw [h.left]
+      refine ⟨⟨d::u, v⟩, PartialMatch.char, h.right⟩
   | plus r₁ r₂ => by
     intro h
     simp [accept] at h
