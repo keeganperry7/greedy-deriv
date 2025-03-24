@@ -51,7 +51,7 @@ def nullable : Regex α → Bool
   | mul r₁ r₂ => r₁.nullable && r₂.nullable
   | star _ _ => true
 
-/-- Definition 10 -/
+/-- Definition 13 -/
  @[simp]
 def prune : Regex α → Regex α
   | emptyset => emptyset
@@ -101,6 +101,7 @@ def deriv : Regex α → α → Regex α
 
 /-! ### Partial Matching -/
 
+/-- Definition 1 -/
 inductive PartialMatch : Regex α → Loc α → Loc α → Prop
   | epsilon {l : Loc α} :
     PartialMatch epsilon l l
@@ -125,7 +126,7 @@ inductive PartialMatch : Regex α → Loc α → Loc α → Prop
 
 notation:100 "(" r ", " l ")" " → " l':40 => PartialMatch r l l'
 
-/-- Definition 11 -/
+/-- Definition 14 -/
 def matchEnd : Regex α → Loc α → Option (Loc α)
   | r, (u, []) =>
     if r.nullable
