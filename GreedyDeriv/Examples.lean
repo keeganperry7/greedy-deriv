@@ -109,17 +109,3 @@ def r17 : Regex (Char) := (star (plus "aa" "aaa") false)
 def r18 : Regex Char := (star (plus 'a' (star 'b' true)) false)
 #eval r18.matchEnd "aaabbb"
 #eval r18.gmatch "aaabbb"
-
--- (a* + b)*
-def r19 : Regex Char := (star (plus (star 'a' false) 'b') false)
-#eval r19.prune
-#eval r19.deriv 'a'
-#eval (r19.deriv 'a').prune
-#eval (r19.deriv 'a').prune.deriv 'b'
-
--- (aa + aaa)*
-def r20 : Regex Char := (star (plus (mul 'a' 'a') (mul 'a' (mul 'a' 'a'))) false)
-#eval r20.prune
-#eval r20.deriv 'a'
-#eval (r20.deriv 'a').prune
-#eval (r20.deriv 'a').prune.deriv 'a'
