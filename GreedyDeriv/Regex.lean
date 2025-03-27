@@ -7,12 +7,23 @@ inductive Regex (α :  Type u) : Type u where
   | char : α → Regex α
   | plus : Regex α → Regex α → Regex α
   | mul : Regex α → Regex α → Regex α
-  | star : Regex α → Bool → Regex α
+  | star : Regex α → Regex α
   deriving Repr
 
 namespace Regex
 
 variable {α : Type u}
+
+def repr [Repr α] : Regex α → Std.Format
+  | emptyset => "∅"
+  | epsilon => "ε"
+  | char c => reprPrec c 0
+  | plus r₁ r₂ => r₁.repr ++ " + " ++ r₂.repr
+  | mul r₁ r₂ => "(" ++ r₁.repr ++ " · " ++ r₂.repr ++ ")"
+  | star r => "(" ++ r.repr ++ ")*"
+
+instance [Repr α] : Repr (Regex α) where
+  reprPrec r _ := r.repr
 
 @[simp]
 def size : Regex α → Nat
@@ -21,7 +32,7 @@ def size : Regex α → Nat
   | char _ => 1
   | plus r₁ r₂ => 1 + r₁.size + r₂.size
   | mul r₁ r₂ => 1 + r₁.size + r₂.size
-  | star r _ => 1 + r.size
+  | star r => 1 + r.size
 
 @[simp]
 def left : Regex α → Regex α
@@ -30,7 +41,7 @@ def left : Regex α → Regex α
   | char c => char c
   | plus r₁ r₂ => plus r₁ r₂
   | mul r₁ _ => r₁
-  | star r lazy? => star r lazy?
+  | star r => star r
 
 def reverse : Regex α → Regex α
   | emptyset => emptyset
@@ -38,7 +49,7 @@ def reverse : Regex α → Regex α
   | char c => char c
   | plus r₁ r₂ => plus r₁.reverse r₂.reverse
   | mul r₁ r₂ => mul r₂.reverse r₁.reverse
-  | star r lazy? => star r.reverse lazy?
+  | star r => star r.reverse
 
 /-! ### Derivatives -/
 
@@ -49,35 +60,16 @@ def nullable : Regex α → Bool
   | char _ => false
   | plus r₁ r₂ => r₁.nullable || r₂.nullable
   | mul r₁ r₂ => r₁.nullable && r₂.nullable
-  | star _ _ => true
+  | star _ => true
 
-/-- Definition 10 -/
- @[simp]
-def prune : Regex α → Regex α
-  | emptyset => emptyset
-  | epsilon => epsilon
-  | char c => char c
-  | plus r₁ r₂ =>
-    if r₁.nullable
-      then r₁.prune
-      else plus r₁.prune r₂.prune
-  | mul emptyset _ => emptyset
-  | mul epsilon r₂ => r₂.prune
-  | mul (char c) r₂ => mul (char c) r₂.prune
-  | mul (plus r₁₁ r₁₂) r₂ =>
-    if (r₁₁.mul r₂).nullable
-      then (r₁₁.mul r₂).prune
-      else plus (r₁₁.mul r₂).prune (r₁₂.mul r₂).prune
-  | mul (mul r₁₁ r₁₂) r₂ => (mul r₁₁ (r₁₂.mul r₂)).prune
-  | mul (star r false) r₂ => mul (r.star false) r₂.prune
-  | mul (star r true) r₂ =>
-    if r₂.nullable
-      then r₂.prune
-      else mul (r.star true) r₂.prune
-  | star r false => r.star false
-  | star _ true => epsilon
-termination_by r => (r.size, r.left.size)
-decreasing_by all_goals (simp only [left, size]; omega)
+@[simp]
+def highNullable : Regex α → Bool
+  | emptyset => false
+  | epsilon => true
+  | char _ => false
+  | plus r₁ _ => r₁.highNullable
+  | mul r₁ r₂ => r₁.highNullable && r₂.highNullable
+  | star r => r.highNullable
 
 variable [DecidableEq α]
 
@@ -92,12 +84,67 @@ def deriv : Regex α → α → Regex α
   | mul (char c) r₂, d => if c = d then r₂ else emptyset
   | mul (plus r₁₁ r₁₂) r₂, c => plus ((r₁₁.mul r₂).deriv c) ((r₁₂.mul r₂).deriv c)
   | mul (mul r₁₁ r₁₂) r₂, c => (r₁₁.mul (r₁₂.mul r₂)).deriv c
-  | mul (star r false) r₂, c => plus ((r.deriv c).mul ((r.star false).mul r₂)) (r₂.deriv c)
-  | mul (star r true) r₂, c => plus (r₂.deriv c) ((r.deriv c).mul ((r.star true).mul r₂))
-  | star r false, c => (r.deriv c).mul (r.star false)
-  | star r true, c => (r.deriv c).mul (r.star true)
+  | mul (star r) r₂, c => plus ((r.deriv c).mul (r.star.mul r₂)) (r₂.deriv c)
+  | star r , c => (r.deriv c).mul r.star
   termination_by r => (r.size, r.left.size)
   decreasing_by all_goals (simp only [left, size]; omega)
+
+@[simp]
+def existsMatch : Regex α → Loc α → Bool
+  | r, ⟨_, []⟩ => r.nullable
+  | r, ⟨u, c::v⟩ => r.nullable || (r.deriv c).existsMatch ⟨c::u, v⟩
+termination_by _ l => l.right.length
+
+def existsMatchNonNullable : Regex α → Loc α → Bool
+  | _, ⟨_, []⟩ => false
+  | r, ⟨u, c::v⟩ => (r.deriv c).existsMatch (c::u, v)
+
+inductive SubBranch : Regex α → Regex α → Prop
+  | same {r : Regex α} :
+    SubBranch r r
+  | left (r₁ r₂ : Regex α) :
+    SubBranch r₁ (plus r₁ r₂)
+  | right {r₁ r₂ : Regex α} :
+    SubBranch r₂ (plus r₁ r₂)
+
+def dist_star_alts : Regex α → Regex α → Regex α → Regex α
+  | emptyset, _, r₂ => r₂
+  | epsilon, _, r₂ => r₂
+  | char c, r_star, r₂ => mul (char c) (mul r_star r₂)
+  | plus r₁₁ r₁₂, r_star, r₂ =>
+    if (dist_star_alts r₁₁ r_star r₂).nullable
+      then dist_star_alts r₁₁ r_star r₂
+      else plus (dist_star_alts r₁₁ r_star r₂) (dist_star_alts r₁₂ r_star r₂)
+  | mul r₁₁ r₁₂, r_star, r₂ => mul (mul r₁₁ r₁₂) (mul r_star r₂)
+  | star r, r_star, r₂ => plus (dist_star_alts r r_star r₂) r₂
+
+/-- Definition 10 -/
+ @[simp]
+def prune : Regex α →  Regex α
+  | emptyset => emptyset
+  | epsilon => epsilon
+  | char c => char c
+  | plus r₁ r₂ =>
+    if r₁.nullable
+      then r₁.prune
+      else plus r₁.prune r₂.prune
+  | mul emptyset _ => emptyset
+  | mul epsilon r₂ => r₂.prune
+  | mul (char c) r₂ => mul (char c) r₂.prune
+  | mul (plus r₁₁ r₁₂) r₂=>
+    if (r₁₁.mul r₂).nullable
+      then (r₁₁.mul r₂).prune
+      else plus (r₁₁.mul r₂).prune (r₁₂.mul r₂).prune
+  | mul (mul r₁₁ r₁₂) r₂=> (mul r₁₁ (r₁₂.mul r₂)).prune
+  | mul (star r) r₂ =>
+    plus (dist_star_alts r (star r) r₂.prune) r₂.prune
+  | star r => r.prune.star
+termination_by r => (r.size, r.left.size)
+decreasing_by all_goals (simp only [left, size]; omega)
+
+theorem prune_star_def {α : Type u} {r : Regex α} :
+  r.star.prune = r.prune.star := by
+  rw [prune]
 
 /-! ### Partial Matching -/
 
@@ -117,12 +164,12 @@ inductive PartialMatch : Regex α → Loc α → Loc α → Prop
     PartialMatch r₁ l k →
     PartialMatch r₂ k l' →
     PartialMatch (mul r₁ r₂) l l'
-  | star_nil {r : Regex α} {lazy? : Bool} {l : Loc α} :
-    PartialMatch (star r lazy?) l l
-  | stars {r : Regex α} {lazy? : Bool} {l k l' : Loc α} :
+  | star_nil {r : Regex α} {l : Loc α} :
+    PartialMatch (star r) l l
+  | stars {r : Regex α} {l k l' : Loc α} :
     PartialMatch r l k →
-    PartialMatch (star r lazy?) k l' →
-    PartialMatch (star r lazy?) l l'
+    PartialMatch (star r) k l' →
+    PartialMatch (star r) l l'
 
 notation:100 "(" r ", " l ")" " → " l':40 => PartialMatch r l l'
 

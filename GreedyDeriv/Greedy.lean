@@ -13,8 +13,7 @@ def Regex.accept : Regex α → Loc α → (Loc α → Option (Loc α)) → Opti
   | char c, (u, d::v), k => if c = d then k (d::u, v) else none
   | plus r₁ r₂, loc, k => (r₁.accept loc k).or (r₂.accept loc k)
   | mul r₁ r₂, loc, k => r₁.accept loc (fun loc' => r₂.accept loc' k)
-  | star r false, loc, k => (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then (r.star false).accept loc' k else none)).or (k loc)
-  | star r true, loc, k => (k loc).or (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then (r.star true).accept loc' k else none))
+  | star r, loc, k => (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then r.star.accept loc' k else k loc)).or (k loc)
 termination_by r loc => (r.size, loc.right.length)
 
 /-- Definition 4 -/
@@ -63,7 +62,7 @@ theorem accept_matches (r : Regex α) (l l' : Loc α) (k : Loc α → Option (Lo
     apply accept_matches at h₂
     rcases h₂ with ⟨p', h₂, hk⟩
     exact ⟨p', PartialMatch.mul h₁ h₂, hk⟩
-  | .star r false => by
+  | .star r => by
     intro h
     rw [accept] at h
     simp at h
@@ -71,29 +70,14 @@ theorem accept_matches (r : Regex α) (l l' : Loc α) (k : Loc α → Option (Lo
     | inl h =>
       apply accept_matches at h
       rcases h with ⟨p, h₁, h₂⟩
-      simp at h₂
-      rcases h₂ with ⟨hp, h₂⟩
-      apply accept_matches at h₂
-      rcases h₂ with ⟨p', h₂, hk⟩
-      refine ⟨p', PartialMatch.stars h₁ h₂, hk⟩
+      split_ifs at h₂ with hp
+      · apply accept_matches at h₂
+        rcases h₂ with ⟨p', h₂, hk⟩
+        refine ⟨p', PartialMatch.stars h₁ h₂, hk⟩
+      · exact ⟨l, PartialMatch.star_nil, h₂⟩
     | inr h =>
       rcases h with ⟨_, h⟩
       exact ⟨l, PartialMatch.star_nil, h⟩
-  | .star r true => by
-    intro h
-    rw [accept] at h
-    simp at h
-    cases h with
-    | inl h => exact ⟨l, PartialMatch.star_nil, h⟩
-    | inr h =>
-      rcases h with ⟨_, h⟩
-      apply accept_matches at h
-      rcases h with ⟨p, h₁, h₂⟩
-      simp at h₂
-      rcases h₂ with ⟨hp, h₂⟩
-      apply accept_matches at h₂
-      rcases h₂ with ⟨p', h₂, hk⟩
-      exact ⟨p', PartialMatch.stars h₁ h₂, hk⟩
 termination_by (r.size, l.right.length)
 
 /-- Proposition 6 -/
@@ -128,33 +112,14 @@ theorem accept_suffix (r : Regex α) {l : Loc α} (k : Loc α → Option (Loc α
         exact Nat.le_trans hl' hl
       · rfl
     · rfl
-  | .star r false => by
+  | .star r => by
     rw [accept, accept]
     simp only [Loc.right, le_refl, reduceIte]
     congr
     funext loc'
     split_ifs with hl
-    · rw [accept_suffix (r.star _) _ x]
-      rw [accept_suffix (r.star _) (fun l' ↦ if l'.2.length ≤ _ then _ else _) x]
-      simp only [Prod.mk.eta, Loc.right]
-      congr
-      funext l
-      split_ifs with h₁ h₂
-      · rfl
-      · absurd h₂
-        apply Nat.le_trans
-        exact h₁
-        exact Nat.le_of_lt hl
-      · rfl
-    · rfl
-  | .star r true => by
-    rw [accept, accept]
-    simp only [Loc.right, le_refl, reduceIte]
-    congr
-    funext loc'
-    split_ifs with hl
-    · rw [accept_suffix (r.star _) _ x]
-      rw [accept_suffix (r.star _) (fun l' ↦ if l'.2.length ≤ _ then _ else _) x]
+    · rw [accept_suffix (r.star) _ x]
+      rw [accept_suffix (r.star) (fun l' ↦ if l'.2.length ≤ _ then _ else _) x]
       simp only [Prod.mk.eta, Loc.right]
       congr
       funext l
@@ -200,16 +165,10 @@ theorem accept_nullable (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc 
     apply ih₂
     exact hn.right
     exact hk
-  | star r lazy? _ =>
-    cases lazy? with
-    | false =>
-      rw [accept]
-      simp
-      exact Or.inr hk
-    | true =>
-      rw [accept]
-      simp
-      exact Or.inl hk
+  | star r _ =>
+    rw [accept]
+    simp
+    exact Or.inr hk
 
 /-- Proposition 8 -/
 theorem accept_nil {r : Regex α} {s : List α} {k : Loc α → Option (Loc α)} :
@@ -252,17 +211,63 @@ theorem accept_nil {r : Regex α} {s : List α} {k : Loc α → Option (Loc α)}
         rw [ih₂, hn]
         rfl
       · rw [ih₁]
-  | star r lazy? ih =>
-    cases lazy? with
-    | false =>
-      rw [accept]
+  | star r ih =>
+    rw [accept]
+    simp
+    split_ifs at ih
+    · rw [ih, Option.or_self]
+    · rw [ih, Option.none_or]
+
+theorem accept_star_mul' (r : Regex α) (r' : Regex α) (hr : SubBranch r' r) :
+  ((r'.mul r.star).accept l k).or (k l) = r.star.accept l k := by
+  match r with
+  | emptyset =>
+    cases hr
+    rw [accept, accept, accept, accept]
+  | epsilon =>
+    cases hr
+    rw [accept, accept]
+    rw [Option.or_of_isSome]
+    apply accept_nullable
+    simp only [nullable]
+    sorry
+  | char c =>
+    cases hr
+    rw [accept, accept]
+    match l with
+    | ⟨u, []⟩ => rw [accept, accept]
+    | ⟨u, d::v⟩ =>
+      rw [accept, accept]
       simp
-      split_ifs at ih
-      · rw [ih, Option.none_or]
-      · rw [ih, Option.none_or]
-    | true =>
-      rw [accept]
+  | plus r₁ r₂ =>
+    cases hr with
+    | same => sorry
+    | left => sorry
+    | right => sorry
+  | mul r₁ r₂ => sorry
+  | .star r => sorry
+
+theorem accept_star_mul (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc α)) :
+  ((r.mul r.star).accept l k).or (k l) = r.star.accept l k := by
+  match r with
+  | emptyset =>
+    rw [accept, accept, accept, accept]
+  | epsilon =>
+    rw [accept, accept]
+    rw [Option.or_of_isSome]
+    apply accept_nullable
+    simp only [nullable]
+    sorry
+  | char c =>
+    rw [accept, accept]
+    match l with
+    | ⟨u, []⟩ => rw [accept, accept]
+    | ⟨u, d::v⟩ =>
+      rw [accept, accept]
       simp
-      split_ifs at ih
-      · rw [ih, Option.or_none]
-      · rw [ih, Option.or_none]
+  | plus r₁ r₂ =>
+    rw [accept, accept, accept, accept]
+    sorry
+  | mul r₁ r₂ => sorry
+  | .star r =>
+    sorry
