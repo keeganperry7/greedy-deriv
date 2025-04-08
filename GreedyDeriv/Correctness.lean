@@ -5,38 +5,77 @@ variable {α : Type u} [DecidableEq α]
 
 open Regex
 
-theorem accept_dist_star (r r₂ : Regex α) (l : Loc α) (k : Loc α → Option (Loc α)) :
-  (plus (dist_star_alts r r.star r₂) r₂).accept l k = (r.star.mul r₂).accept l k := by
-  cases r with
+theorem accept_test (r r' r₂ : Regex α) (l : Loc α) (k : Loc α → Option (Loc α)) :
+  ((dist_star_alts r' r r₂).accept l k) = (r'.accept l (fun l' ↦ if l'.right.length < l.right.length then (r.mul r₂).accept l' k else r₂.accept l k)) := by
+  induction r' with
   | emptyset =>
     rw [dist_star_alts]
-    rw [accept, accept, accept, accept]
-    simp
+    rw [accept, accept]
   | epsilon =>
     rw [dist_star_alts]
-    rw [accept, accept, accept, accept]
+    rw [accept]
     simp
   | char c =>
     rw [dist_star_alts]
-    rw [accept, accept, accept, accept]
-    simp
+    rw [accept]
     match l with
     | ⟨u, []⟩ =>
       rw [accept, accept]
     | ⟨u, c::v⟩ =>
       rw [accept, accept]
       simp
-      simp_rw [←accept_mul_def]
-  | plus r₁₁ r₁₂ =>
+  | plus r₁₁ r₁₂ ih₁ ih₂ =>
     rw [dist_star_alts]
     split_ifs with hn
     · sorry
-    · rw [accept, accept, accept, accept, accept]
-      simp_rw [←accept_mul_def]
+    · rw [accept, accept]
+      rw [ih₁, ih₂]
+  | mul r₁₁ r₁₂ =>
+    sorry
+  | star r' ih =>
+    rw [dist_star_alts]
+    rw [accept]
+    rw [ih]
+    rw [accept]
+    simp
+    congr
+    funext l'
+    split_ifs with hl
+    · sorry
+    · rfl
 
-      sorry
-  | mul r₁₂ r₁₂ => sorry
-  | star r => sorry
+-- theorem accept_dist_star (r r₂ : Regex α) (l : Loc α) (k : Loc α → Option (Loc α)) :
+--   (plus (dist_star_alts r r.star r₂) r₂).accept l k = (r.star.mul r₂).accept l k := by
+--   cases r with
+--   | emptyset =>
+--     rw [dist_star_alts]
+--     rw [accept, accept, accept, accept]
+--     simp
+--   | epsilon =>
+--     rw [dist_star_alts]
+--     rw [accept, accept, accept, accept]
+--     simp
+--   | char c =>
+--     rw [dist_star_alts]
+--     rw [accept, accept, accept, accept]
+--     simp
+--     match l with
+--     | ⟨u, []⟩ =>
+--       rw [accept, accept]
+--     | ⟨u, c::v⟩ =>
+--       rw [accept, accept]
+--       simp
+--       simp_rw [←accept_mul_def]
+--   | plus r₁₁ r₁₂ =>
+--     rw [dist_star_alts]
+--     split_ifs with hn
+--     · sorry
+--     · rw [accept, accept, accept, accept, accept]
+--       simp_rw [←accept_mul_def]
+
+--       sorry
+--   | mul r₁₂ r₁₂ => sorry
+--   | star r => sorry
 
 /-- Theorem 12 -/
 theorem accept_prune (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc α)) (hk : ∀ l', (k l').isSome) :

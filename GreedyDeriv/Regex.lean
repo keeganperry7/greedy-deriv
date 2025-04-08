@@ -8,7 +8,6 @@ inductive Regex (α :  Type u) : Type u where
   | plus : Regex α → Regex α → Regex α
   | mul : Regex α → Regex α → Regex α
   | star : Regex α → Regex α
-  deriving Repr
 
 namespace Regex
 
@@ -108,7 +107,7 @@ inductive SubBranch : Regex α → Regex α → Prop
     SubBranch r₂ (plus r₁ r₂)
 
 def dist_star_alts : Regex α → Regex α → Regex α → Regex α
-  | emptyset, _, r₂ => r₂
+  | emptyset, _, _ => emptyset
   | epsilon, _, r₂ => r₂
   | char c, r_star, r₂ => mul (char c) (mul r_star r₂)
   | plus r₁₁ r₁₂, r_star, r₂ =>
