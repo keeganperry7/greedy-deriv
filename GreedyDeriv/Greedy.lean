@@ -21,9 +21,108 @@ termination_by r loc => (r.size, loc.right.length)
 def Regex.gmatch : Regex α → Loc α → Option (Loc α)
   | r, l => r.accept l some
 
+def Regex.all_locs : Regex α → Loc α → List (Loc α)
+  | emptyset, _ => []
+  | epsilon, loc => [loc]
+  | char _, (_, []) => []
+  | char c, (u, d::v) => if c = d then [(d::u, v)] else []
+  | plus r₁ r₂, loc => r₁.all_locs loc ++ r₂.all_locs loc
+  | mul r₁ r₂, loc => (r₁.all_locs loc).flatMap (fun loc' => r₂.all_locs loc')
+  | star r false, loc => (r.all_locs loc).flatMap (fun loc' => if loc'.right.length < loc.right.length then (r.star false).all_locs loc' else []) ++ [loc]
+  | star r true, loc => [loc] ++ (r.all_locs loc).flatMap (fun loc' => if loc'.right.length < loc.right.length then (r.star true).all_locs loc' else [])
+termination_by r loc => (r.size, loc.right.length)
+
+def Regex.greedy : Regex α → Loc α → Option (Loc α)
+  | r, l => (r.all_locs l).head?
+
 theorem accept_mul_def (r₁ r₂ : Regex α) (loc : Loc α) (k : Loc α → Option (Loc α)) :
   (r₁.mul r₂).accept loc k = (r₁.accept loc (fun loc' => r₂.accept loc' k)) := by
   rw [accept]
+
+theorem accept_greedy_none (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc α)) (hk : (k l).isSome) :
+  r.accept l k = none ↔ r.greedy l = none := by
+  match r with
+  | emptyset =>
+    simp [accept, greedy, all_locs]
+  | epsilon =>
+    simp [accept, greedy, all_locs]
+    rw [Option.isSome_iff_ne_none] at hk
+    exact hk
+  | char c =>
+    match l with
+    | ⟨_, []⟩ =>
+      simp [accept, greedy, all_locs]
+    | ⟨u, d::v⟩ =>
+      simp [accept, greedy, all_locs]
+      constructor
+      · intro h hc
+        sorry
+      · intro h hc
+        absurd h
+        exact hc
+  | plus r₁ r₂ => sorry
+  | mul r₁ r₂ => sorry
+  | .star r false => sorry
+  | .star r true => sorry
+
+theorem accept_greedy_some (r : Regex α) (l l' : Loc α) (k : Loc α → Option (Loc α)) :
+  r.accept l k = some l' → ∃ p, r.greedy l = some p ∧ k p = some l' := by
+  match r with
+  | emptyset => simp [accept]
+  | epsilon =>
+    simp only [accept]
+    intro hk
+    refine ⟨l, ?_, hk⟩
+    rw [greedy, all_locs, List.head?_cons]
+  | char c =>
+    match l with
+    | ⟨_, []⟩ => simp [accept]
+    | ⟨u, d::v⟩ =>
+      simp only [accept]
+      split_ifs with hc
+      · intro hk
+        subst hc
+        refine ⟨(c::u, v), ?_, hk⟩
+        simp [greedy, all_locs]
+      · tauto
+  | plus r₁ r₂ =>
+    intro h
+    simp [accept] at h
+    cases h with
+    | inl h =>
+      apply accept_greedy_some at h
+      rw [greedy] at h
+      rcases h with ⟨p, h, hk⟩
+      refine ⟨p, ?_, hk⟩
+      simp [greedy, all_locs]
+      exact Or.inl h
+    | inr h =>
+      rcases h with ⟨h₁, h₂⟩
+      apply accept_greedy_some at h₂
+      rw [greedy] at h₂
+      rcases h₂ with ⟨p, h₂, hk⟩
+      refine ⟨p, ?_, hk⟩
+      simp [greedy, all_locs]
+      refine Or.inr ⟨?_, h₂⟩
+      sorry
+  | mul r₁ r₂ =>
+    intro h
+    simp [accept] at h
+    apply accept_greedy_some at h
+    rw [greedy] at h
+    rcases h with ⟨p, h₁, h₂⟩
+    apply accept_greedy_some at h₂
+    rw [greedy] at h₂
+    rcases h₂ with ⟨p', h₂, hk⟩
+    refine ⟨p', ?_, hk⟩
+    simp [greedy, all_locs]
+    rw [List.head?_flatMap, List.findSome?_eq_some_iff]
+    rw [List.head?_eq_some_iff] at h₁
+    rcases h₁ with ⟨ps, h₁⟩
+    exact ⟨[], p, ps, by simp [h₁], h₂, by simp⟩
+  | .star r false =>
+    sorry
+  | .star r true => sorry
 
 /-- Theorem 6 -/
 theorem accept_matches (r : Regex α) (l l' : Loc α) (k : Loc α → Option (Loc α)) :
