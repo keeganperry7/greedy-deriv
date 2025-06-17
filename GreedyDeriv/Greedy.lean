@@ -1,7 +1,7 @@
 import GreedyDeriv.Regex
 import Mathlib.Tactic
 
-variable {α : Type u} [DecidableEq α]
+variable {α : Type} [DecidableEq α]
 
 open Regex
 
@@ -15,6 +15,10 @@ def Regex.accept : Regex α → Loc α → (Loc α → Option (Loc α)) → Opti
   | mul r₁ r₂, loc, k => r₁.accept loc (fun loc' => r₂.accept loc' k)
   | star r false, loc, k => (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then (r.star false).accept loc' k else none)).or (k loc)
   | star r true, loc, k => (k loc).or (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then (r.star true).accept loc' k else none))
+  | lookahead r, loc, k =>
+    if (r.accept loc some).isSome
+      then k loc
+      else none
 termination_by r loc => (r.size, loc.right.length)
 
 /-- Definition 5 -/
@@ -95,6 +99,15 @@ theorem accept_matches (r : Regex α) (l l' : Loc α) (k : Loc α → Option (Lo
       apply accept_matches at h₂
       rcases h₂ with ⟨p', h₂, hk⟩
       exact ⟨p', PartialMatch.stars h₁ h₂, hk⟩
+  | lookahead r => by
+    intro h
+    simp [accept] at h
+    rcases h with ⟨h, hk⟩
+    rw [Option.isSome_iff_exists] at h
+    rcases h with ⟨p, h⟩
+    apply accept_matches at h
+    simp at h
+    exact ⟨l, PartialMatch.lookahead h, hk⟩
 termination_by (r.size, l.right.length)
 
 /-- Corollary 7 -/
@@ -176,10 +189,12 @@ theorem accept_suffix (r : Regex α) {l : Loc α} (k : Loc α → Option (Loc α
         exact Nat.le_of_lt hl
       · rfl
     · rfl
+  | lookahead r => by
+    simp [accept]
 termination_by (r.size, l.right.length)
 
 /-- Lemma 9 -/
-theorem accept_nullable (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc α)) (hn : r.nullable) (hk : (k l).isSome) :
+theorem accept_nullable (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc α)) (hn : r.nullable l) (hk : (k l).isSome) :
   (r.accept l k).isSome := by
   induction r generalizing k with
   | emptyset => simp at hn
@@ -220,10 +235,14 @@ theorem accept_nullable (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc 
       rw [accept]
       simp
       exact Or.inl hk
+  | lookahead r =>
+    simp [accept]
+    simp [nullable] at hn
+    sorry
 
 /-- Theorem 10 -/
 theorem accept_nil {r : Regex α} {s : List α} {k : Loc α → Option (Loc α)} :
-  r.accept (s, []) k = if r.nullable then k (s, []) else none := by
+  r.accept (s, []) k = if r.nullable (s, []) then k (s, []) else none := by
   induction r generalizing k with
   | emptyset => simp [accept]
   | epsilon => simp [accept]
@@ -276,3 +295,6 @@ theorem accept_nil {r : Regex α} {s : List α} {k : Loc α → Option (Loc α)}
       split_ifs at ih
       · rw [ih, Option.or_none]
       · rw [ih, Option.or_none]
+  | lookahead r =>
+    simp [accept]
+    sorry
