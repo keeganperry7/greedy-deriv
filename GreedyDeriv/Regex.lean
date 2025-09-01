@@ -61,23 +61,20 @@ def prune : Regex α → Regex α
     if r₁.nullable
       then r₁.prune
       else plus r₁.prune r₂.prune
-  | mul emptyset _ => emptyset
-  | mul epsilon r₂ => r₂.prune
-  | mul (char c) r₂ => mul (char c) r₂.prune
-  | mul (plus r₁₁ r₁₂) r₂ =>
-    if (r₁₁.mul r₂).nullable
-      then (r₁₁.mul r₂).prune
-      else plus (r₁₁.mul r₂).prune (r₁₂.mul r₂).prune
-  | mul (mul r₁₁ r₁₂) r₂ => (mul r₁₁ (r₁₂.mul r₂)).prune
-  | mul (star r false) r₂ => mul (r.star false) r₂.prune
-  | mul (star r true) r₂ =>
+  | mul r₁ r₂ =>
     if r₂.nullable
-      then r₂.prune
-      else mul (r.star true) r₂.prune
+      then mul r₁.prune r₂.prune
+      else mul r₁ r₂.prune
   | star r false => r.star false
   | star _ true => epsilon
-termination_by r => (r.size, r.left.size)
-decreasing_by all_goals (simp only [left, size]; omega)
+
+theorem prune_mul_nullable {r₁ r₂ : Regex α} (hn₂ : r₂.nullable) :
+  (r₁.mul r₂).prune = r₁.prune.mul r₂.prune := by
+  simp [prune, hn₂]
+
+theorem prune_mul_not_nullable {r₁ r₂ : Regex α} (hn₂ : ¬r₂.nullable) :
+  (r₁.mul r₂).prune = r₁.mul r₂.prune := by
+  simp [prune, hn₂]
 
 variable [DecidableEq α]
 
