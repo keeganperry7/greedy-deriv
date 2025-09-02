@@ -40,6 +40,16 @@ def left : Regex α → Regex α
 
 variable [DecidableEq α]
 
+@[simp]
+def alwaysNullable : Regex α → Bool
+  | emptyset => false
+  | epsilon => true
+  | char _ => false
+  | plus r₁ r₂ => r₁.alwaysNullable || r₂.alwaysNullable
+  | mul r₁ r₂ => r₁.alwaysNullable && r₂.alwaysNullable
+  | star _ _ => true
+  | lookahead r => r.alwaysNullable
+
 mutual
 
 @[simp]
@@ -89,41 +99,71 @@ termination_by r l => (l.right.length, r.size, r.left.size, 1)
 
 end
 
+theorem alwaysNullable_nullable {r : Regex α} :
+  r.alwaysNullable → ∀ l, r.nullable l := by
+  intro h
+  induction r with
+  | emptyset => nomatch h
+  | epsilon => simp
+  | char => nomatch h
+  | plus r₁ r₂ ih₁ ih₂ =>
+    simp at h
+    cases h with
+    | inl h =>
+      simp [ih₁ h]
+    | inr h =>
+      simp [ih₂ h]
+  | mul r₁ r₂ ih₁ ih₂ =>
+    simp at h
+    simp [ih₁ h.left, ih₂ h.right]
+  | star => simp
+  | lookahead r ih =>
+    simp at h
+    intro l
+    simp
+    unfold existsMatch
+    split <;> simp [ih h]
+
+theorem alwaysNullable_existsMatch (r : Regex α) :
+  r.alwaysNullable → ∀ l, r.existsMatch l := by
+  intro h l
+  unfold existsMatch
+  split <;>
+  simp [alwaysNullable_nullable h]
+
+theorem existsMatch_emptyset (l : Loc α) :
+  emptyset.existsMatch l = false := by
+  rcases l with ⟨u, v⟩
+  induction v generalizing u with
+  | nil => simp [existsMatch]
+  | cons x xs ih =>
+    simp [existsMatch]
+    apply ih
+
+theorem existsMatch_epsilon (l : Loc α) :
+  epsilon.existsMatch l = true := by
+  unfold existsMatch
+  split <;> simp
+
 /-- Definition 13 -/
- @[simp]
+@[simp]
 def prune : Regex α → Loc α → Regex α
   | emptyset, _ => emptyset
   | epsilon, _ => epsilon
-  | char c, _ => char c
+  | char c, _  => char c
   | plus r₁ r₂, l =>
     if r₁.nullable l
       then r₁.prune l
       else plus (r₁.prune l) (r₂.prune l)
-  | mul emptyset _, _ => emptyset
-  | mul epsilon r₂, l => r₂.prune l
-  | mul (char c) r₂, _ => mul (char c) r₂
-  | mul (plus r₁₁ r₁₂) r₂, l =>
-    if (r₁₁.mul r₂).nullable l
-      then (r₁₁.mul r₂).prune l
-      else plus ((r₁₁.mul r₂).prune l) ((r₁₂.mul r₂).prune l)
-  | mul (mul r₁₁ r₁₂) r₂, l => (mul r₁₁ (r₁₂.mul r₂)).prune l
-  | mul (star r false) r₂, _ => mul (r.star false) r₂
-  | mul (star r true) r₂, l =>
-    if r₂.nullable l
-      then r₂.prune l
-      else mul (r.star true) r₂
-  | mul (lookahead r) r₂, l =>
-    if r.existsMatch l
-      then r₂.prune l
-      else mul (lookahead r) r₂
+  | mul r₁ r₂, l =>
+    if r₂.alwaysNullable
+      then mul (r₁.prune l) (r₂.prune l)
+      else mul r₁ r₂
   | star r false, _ => r.star false
   | star _ true, _ => epsilon
-  | lookahead r, l =>
-    if r.existsMatch l
-      then epsilon
-      else emptyset
-termination_by r => (r.size, r.left.size)
-decreasing_by all_goals (simp only [left, size]; omega)
+  -- If we are ever in the position to prune a lookahead, then it must have
+  -- already been satisfied
+  | lookahead _, _ => epsilon
 
 /-! ### Partial Matching -/
 

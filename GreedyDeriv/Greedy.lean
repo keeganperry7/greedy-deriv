@@ -193,6 +193,65 @@ theorem accept_suffix (r : Regex α) {l : Loc α} (k : Loc α → Option (Loc α
     simp [accept]
 termination_by (r.size, l.right.length)
 
+theorem accept_existsMatch (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc α)) (hk : ∀ l, (k l).isSome) :
+  (r.accept l k).isSome ↔ r.existsMatch l := by
+  induction r generalizing k with
+  | emptyset =>
+    simp [accept]
+    exact existsMatch_emptyset _
+  | epsilon =>
+    simp [accept, existsMatch]
+    unfold existsMatch
+    split <;> simp [hk]
+  | char c =>
+    simp [accept, existsMatch]
+    unfold existsMatch
+    split
+    · simp [accept]
+    · simp [accept]
+      split
+      · unfold existsMatch
+        split
+        · simp [hk]
+        · simp [hk]
+      · simp
+        exact existsMatch_emptyset _
+  | plus r₁ r₂ ih₁ ih₂ =>
+    simp [accept]
+    rw [ih₁ k hk, ih₂ k hk]
+    sorry
+  | mul r₁ r₂ ih₁ ih₂ =>
+    simp [accept]
+    unfold existsMatch
+    split
+    · simp
+      sorry
+    · simp
+      sorry
+  | star r _ ih =>
+    sorry
+  | lookahead r ih =>
+    simp [accept]
+    simp_rw [ih some (by simp)]
+    unfold existsMatch
+    split
+    · simp [existsMatch]
+      split
+      · simp [hk]
+        assumption
+      · simp at *
+        assumption
+    · simp [existsMatch]
+      split
+      · next hn =>
+        cases hn with
+        | inl hn =>
+          simp [hn, hk]
+        | inr hn =>
+          simp [hn, hk]
+      · simp [existsMatch_emptyset] at *
+        assumption
+
 /-- Lemma 9 -/
 theorem accept_nullable (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc α)) (hn : r.nullable l) (hk : (k l).isSome) :
   (r.accept l k).isSome := by
