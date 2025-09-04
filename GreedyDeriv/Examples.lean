@@ -61,7 +61,6 @@ def r10 : Regex (Char) := ((Regex.plus epsilon 'a').star false).mul 'b'
 
 -- (a + ε)*(ε + b)
 def r11 : Regex (Char) := ((Regex.plus 'a' epsilon).star false).mul (Regex.plus (epsilon) 'b')
-#eval r11.deriv "a"
 #guard r11.gmatch "ab" = r11.matchEnd "ab"
 
 -- (ε + a)*(ε + b)
@@ -71,6 +70,13 @@ def r12 : Regex (Char) := ((Regex.plus epsilon 'a').star false).mul (Regex.plus 
 -- (a + ε + b)*b
 def r13 : Regex (Char) := ((Regex.plus 'a' (Regex.plus epsilon 'b')).star false).mul 'b'
 #guard r13.gmatch "bb" = r13.matchEnd "bb"
+
+-- (a + ε + b)b
+def r13' : Regex (Char) := ((Regex.plus 'a' (Regex.plus epsilon 'b'))).mul 'b'
+#guard r13'.gmatch "bb" = r13'.matchEnd "bb"
+
+def r13'' : Regex (Char) := ((Regex.plus 'a' (Regex.plus epsilon 'c'))).mul 'b'
+#guard r13''.gmatch "cb" = r13''.matchEnd "cb"
 
 -- a*?a
 def r14 : Regex (Char) := (star 'a' true).mul 'a'
@@ -110,8 +116,7 @@ def r22 : Regex Char := (plus (lookahead 'a') (mul 'a' (lookahead 'a')))
 
 -- (a + ε)*((?=b) + b(?=b))
 def r23 : Regex Char := ((Regex.plus 'a' epsilon).star false).mul (Regex.plus (lookahead 'b') (mul 'b' (lookahead 'b')))
-#eval r23.gmatch "abb"
-#eval r23.matchEnd "abb"
+#guard r23.gmatch "bb" = r23.matchEnd "bb"
 
 -- a*((?=a) + b)
 def r24 : Regex Char := (star 'a' false).mul (plus (lookahead 'a') 'b')

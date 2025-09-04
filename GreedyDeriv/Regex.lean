@@ -99,6 +99,19 @@ termination_by r l => (l.right.length, r.size, r.left.size, 1)
 
 end
 
+def denullify : Regex α → Loc α → Regex α
+  | emptyset, _ => emptyset
+  | epsilon, _ => emptyset
+  | char c, _ => char c
+  | plus r₁ r₂, l => plus (r₁.denullify l) (r₂.denullify l)
+  | mul r₁ r₂, l =>
+    if r₁.nullable l
+      then (r₁.denullify l).mul r₂
+      else r₁.mul r₂
+  | star r false, l => mul (r.denullify l) (star r false)
+  | star _ true, _ => emptyset
+  | lookahead _, _ => emptyset
+
 theorem alwaysNullable_nullable {r : Regex α} :
   r.alwaysNullable → ∀ l, r.nullable l := by
   intro h
@@ -156,8 +169,8 @@ def prune : Regex α → Loc α → Regex α
       then r₁.prune l
       else plus (r₁.prune l) (r₂.prune l)
   | mul r₁ r₂, l =>
-    if r₂.alwaysNullable
-      then mul (r₁.prune l) (r₂.prune l)
+    if r₂.nullable l
+      then plus (mul ((r₁.prune l).denullify l) r₂) (r₂.prune l)
       else mul r₁ r₂
   | star r false, _ => r.star false
   | star _ true, _ => epsilon
