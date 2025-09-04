@@ -51,6 +51,32 @@ def nullable : Regex α → Bool
   | mul r₁ r₂ => r₁.nullable && r₂.nullable
   | star _ _ => true
 
+@[simp]
+def denullify : Regex α → Regex α
+  | emptyset => emptyset
+  | epsilon => emptyset
+  | char c => char c
+  | plus r₁ r₂ => plus r₁.denullify r₂.denullify
+  | mul r₁ r₂ =>
+    if r₁.nullable ∧ r₂.nullable
+      then (r₁.denullify.mul r₂).plus r₂.denullify
+      else r₁.mul r₂
+  | star r lazy? => mul r.denullify (star r lazy?)
+
+theorem denullify_not_nullable (r : Regex α) (hn : ¬r.nullable) :
+  r.denullify = r := by
+  induction r with
+  | emptyset => rfl
+  | epsilon => simp at hn
+  | char c => rfl
+  | plus r₁ r₂ ih₁ ih₂ =>
+    simp at hn
+    simp
+    rw [ih₁ (by simp [hn.left]), ih₂ (by simp [hn.right])]
+    exact ⟨rfl, rfl⟩
+  | mul r₁ r₂ ih₁ ih₂ => simp_all
+  | star r lazy? => simp at hn
+
 /-- Definition 13 -/
  @[simp]
 def prune : Regex α → Regex α
@@ -62,19 +88,35 @@ def prune : Regex α → Regex α
       then r₁.prune
       else plus r₁.prune r₂.prune
   | mul r₁ r₂ =>
-    if r₂.nullable
-      then mul r₁.prune r₂.prune
-      else mul r₁ r₂.prune
+    if r₁.nullable ∧ r₂.nullable
+      then plus (r₁.prune.denullify.mul r₂) r₂.prune
+      else mul r₁ r₂
   | star r false => r.star false
   | star _ true => epsilon
 
+theorem prune_not_nullable (r : Regex α) (hn : ¬r.nullable) :
+  r.prune = r := by
+  induction r with
+  | emptyset => rfl
+  | epsilon => simp at hn
+  | char c => rfl
+  | plus r₁ r₂ ih₁ ih₂ =>
+    simp at hn
+    simp [hn]
+    rw [ih₁ (by simp [hn.left]), ih₂ (by simp [hn.right])]
+    exact ⟨rfl, rfl⟩
+  | mul r₁ r₂ ih₁ ih₂ => simp_all
+  | star r lazy? => simp at hn
+
 theorem prune_mul_nullable {r₁ r₂ : Regex α} (hn₂ : r₂.nullable) :
   (r₁.mul r₂).prune = r₁.prune.mul r₂.prune := by
-  simp [prune, hn₂]
+  sorry
+  -- simp [prune, hn₂]
 
 theorem prune_mul_not_nullable {r₁ r₂ : Regex α} (hn₂ : ¬r₂.nullable) :
   (r₁.mul r₂).prune = r₁.mul r₂.prune := by
-  simp [prune, hn₂]
+  sorry
+  -- simp [prune, hn₂]
 
 variable [DecidableEq α]
 

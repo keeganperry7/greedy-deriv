@@ -276,3 +276,54 @@ theorem accept_nil {r : Regex α} {s : List α} {k : Loc α → Option (Loc α)}
       split_ifs at ih
       · rw [ih, Option.or_none]
       · rw [ih, Option.or_none]
+
+theorem accept_denullify (r : Regex α) {l : Loc α} (k : Loc α → Option (Loc α)) :
+  r.denullify.accept l k = (r.accept l (fun l' => if l'.right.length < l.right.length then k l' else none)) := by
+  match r with
+  | emptyset => simp [accept]
+  | epsilon =>
+    simp [accept]
+  | char c =>
+    simp [accept]
+    sorry
+  | plus r₁ r₂ =>
+    simp [accept]
+    rw [accept_denullify, accept_denullify]
+    rfl
+  | mul r₁ r₂ =>
+    simp [accept]
+    split_ifs with hn₁
+    · rw [accept, accept]
+      rw [accept_denullify]
+      rw [accept_denullify]
+      ext l'
+      constructor
+      · intro h
+        simp at h
+        cases h with
+        | inl h =>
+          simp
+          rw [←h]
+          congr
+          funext l''
+          split_ifs with hl''
+          · rw [accept_suffix _ k none]
+            congr
+            funext l'''
+            sorry
+          · rw [accept_suffix _ _ none]
+            simp
+            sorry
+        | inr h =>
+          simp
+          rw [←h.right]
+
+          sorry
+      · sorry
+    · sorry
+  | .star r false =>
+    simp
+    rw [accept]
+    rw [accept_denullify]
+    sorry
+  | .star r true => sorry

@@ -27,12 +27,58 @@ theorem accept_prune (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc α)
     · simp only [accept]
       rw [ih₁]
       simp_rw [ih₂ _ k hk]
+      -- generalize hr₁ : r₁.prune = r₁' at *
+      generalize hr₂ : r₂.prune = r₂' at *
+      generalize hk' : (fun loc' ↦ r₂'.accept loc' k) = k' at *
+      rw [congrFun hk' l]
+      -- have hn₁' : r₁'.nullable := by
+      --   -- r.prune.nullable = r.nullable
+      --   sorry
+      -- clear hn hr₁ hr₂ hk hk' ih₁ ih₂
+      clear ih₁ ih₂
+      induction r₁ with
+      | emptyset => simp at hn
+      | epsilon => simp [accept]
+      | char => simp at hn
+      | plus r₁ r₂ ih₁ ih₂ =>
+        simp [accept]
+        simp at hn
+        split_ifs with hn₁
+        · rw [ih₁]
+          exact ⟨hn₁, hn.right⟩
+        · simp [hn₁] at hn
+          simp [accept]
+          rw [ih₂ hn]
+          -- True, since ¬r.nullable → r.denullify = r
+          sorry
+      | mul r₁ r₂ ih₁ ih₂ =>
+        simp only [prune]
+        split_ifs with hn₁
+        · simp
+          split_ifs with hn'
+          · -- Contradiction: r.denullify.nullable = true
+            sorry
+          · simp at hn'
+            simp [accept]
+            rw [ih₂, Option.or_assoc]
+            exact ⟨hn₁.right, hn.right⟩
+        · simp_all
+      | star r lazy? ih =>
+        cases lazy? with
+        | false =>
+          simp only [prune, denullify]
+          rw [accept, accept_denullify, accept]
+        | true => simp [accept]
       intro l'
       apply accept_nullable
-      exact hn
+      exact hn.right
       exact hk l'
+      -- intro l'
+      -- apply accept_nullable
+      -- exact hn
+      -- exact hk l'
     · simp [accept]
-      simp_rw [ih₂ _ _ hk]
+      -- simp_rw [ih₂ _ _ hk]
   | star r lazy? =>
     cases lazy? with
     | false => rw [prune]
@@ -229,8 +275,13 @@ theorem accept_deriv_none {r : Regex α} {c : α} {u v : List α} {k : Loc α �
     | epsilon =>
       simp [accept]
       intro h
-      apply accept_deriv_none hk
-      exact h
+      split_ifs at h
+      · simp [accept] at h
+        apply accept_deriv_none hk
+        exact h
+      · simp [accept] at h
+        -- Need: ¬r.nullable → r.prune = r
+        sorry
     | char c =>
       simp [accept]
       split_ifs with hc
@@ -245,6 +296,7 @@ theorem accept_deriv_none {r : Regex α} {c : α} {u v : List α} {k : Loc α �
         have ih := @accept_deriv_none (r₁₁.mul r₂) c u v k hk
         simp [hn, hn'] at ih
         simp [hn, hn']
+        rw [Regex.deriv] at h
         exact ih h
         apply accept_nullable
         simp [hn, hn']
@@ -258,8 +310,15 @@ theorem accept_deriv_none {r : Regex α} {c : α} {u v : List α} {k : Loc α �
         rw [Option.or_of_isNone]
         simp [hn, hn'] at ih₂
         simp [hn, hn']
-        exact ih₂ h₂
-        simp [ih₁ h₁]
+        simp_all
+        apply ih₂
+        simp [accept]
+        exact ⟨h₁.right, h₂⟩
+        simp
+        -- Need: ¬r.nullable → r.prune = r and ¬r.nullable → r.denullify = r
+        sorry
+        -- exact ih₂ h₂
+        -- simp [ih₁ h₁]
       · simp [accept] at h
         rcases h with ⟨h₁, h₂⟩
         have ih₁ := @accept_deriv_none (r₁₁.mul r₂) c u v k hk
@@ -267,8 +326,12 @@ theorem accept_deriv_none {r : Regex α} {c : α} {u v : List α} {k : Loc α �
         simp [hn] at ih₁ ih₂
         simp [hn]
         rw [accept, accept, ←accept_mul_def, ←accept_mul_def]
-        simp
-        exact ⟨ih₁ h₁, ih₂ h₂⟩
+        split_ifs at ih₁
+        · simp_all
+        · split_ifs at ih₂
+          · simp_all
+          · simp
+            exact ⟨ih₁ h₁, ih₂ h₂⟩
     | mul r₁₁ r₁₂ =>
       intro h
       simp [prune] at h
@@ -278,31 +341,49 @@ theorem accept_deriv_none {r : Regex α} {c : α} {u v : List α} {k : Loc α �
         rw [Regex.deriv] at h
         simp [accept, hn₂, hn₁₂]
         simp_rw [←accept_mul_def]
-        exact ih h
+        sorry
+        -- exact ih h
       · simp [prune, hn₂, hn₁₂] at ih
         rw [Regex.deriv] at h
         simp [accept, hn₂, hn₁₂]
         simp_rw [←accept_mul_def]
-        exact ih h
+        simp_all
+        -- exact ih h
       · simp [prune, hn₂] at ih
         rw [Regex.deriv] at h
         simp [accept, hn₂]
         simp_rw [←accept_mul_def]
-        exact ih h
+        split_ifs at ih
+        · simp_all
+        · simp_all
+        · exact ih h
     | .star r false =>
       intro h
       simp at h
-      rw [accept, accept] at h
-      rw [accept_deriv_cond] at h
-      simp at h
-      rcases h with ⟨h₁, h₂⟩
-      apply accept_deriv_none at h₂
-      simp_rw [accept_mul_def] at h₁
-      rw [accept, accept]
-      simp
-      simp_rw [←accept_prune r₂ _ k hk] at h₁
-      rw [h₁, h₂, Option.none_or]
-      exact hk
+      split_ifs at h with hn₂
+      · simp [accept] at h
+        simp [hn₂]
+        rcases h with ⟨h₁, h₂⟩
+        -- I think we should have that (r₁.denullify.mul r₂).deriv c =
+        -- (r₁.denullify.deriv c).mul r₂
+        -- NOPE :( -- lanuage acceptance yes, but not equal
+        sorry
+      · simp at h
+        rw [accept, accept] at h
+        rw [accept_deriv_cond] at h
+        simp at h
+        rcases h with ⟨h₁, h₂⟩
+        rw [←prune_not_nullable r₂ hn₂] at h₂
+        apply accept_deriv_none at h₂
+        simp_rw [accept_mul_def] at h₁
+        rw [accept, accept]
+        simp [hn₂]
+        rw [h₁, h₂]
+        simp [hn₂]
+        exact hk
+        -- simp_rw [←accept_prune r₂ _ k hk] at h₁
+        -- rw [h₁, h₂, Option.none_or]
+        -- exact hk
     | .star r true =>
       simp
       intro h
