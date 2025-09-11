@@ -85,6 +85,13 @@ def r13 : Regex (Char) := ((Regex.plus 'a' (Regex.plus epsilon 'b')).star false)
 #guard r13.matchEnd "bb" = some ⟨['b', 'b'], []⟩
 #guard r13.gmatch "bb" = r13.matchEnd "bb"
 
+def r13'' : Regex (Char) := (((Regex.plus epsilon 'b')).star false).mul 'b'
+#guard r13''.gmatch "bb" = r13''.matchEnd "bb"
+
+-- (a + ε + b)b
+def r13' : Regex (Char) := ((Regex.plus 'a' (Regex.plus epsilon 'b'))).mul 'b'
+#guard r13'.gmatch "bb" = r13'.matchEnd "bb"
+
 -- a*?a
 def r14 : Regex (Char) := (star 'a' true).mul 'a'
 #guard r14.matchEnd "aaa" = some ⟨['a'], ['a', 'a']⟩

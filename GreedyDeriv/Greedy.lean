@@ -284,46 +284,280 @@ theorem accept_denullify (r : Regex α) {l : Loc α} (k : Loc α → Option (Loc
   | epsilon =>
     simp [accept]
   | char c =>
-    simp [accept]
-    sorry
+    rcases l with ⟨u, v⟩
+    cases v <;> simp [accept]
   | plus r₁ r₂ =>
     simp [accept]
     rw [accept_denullify, accept_denullify]
     rfl
   | mul r₁ r₂ =>
-    simp [accept]
-    split_ifs with hn₁
-    · rw [accept, accept]
+    match r₁ with
+    | emptyset => simp [accept]
+    | epsilon =>
+      simp [accept]
+      rw [accept_denullify]
+      rfl
+    | char c =>
+      simp [accept]
+      rcases l with ⟨u, v⟩
+      cases v
+      simp [accept]
+      simp [accept]
+      split_ifs
+      · rw [accept_suffix _ _ none]
+        rw [accept_suffix _ (fun l' ↦ if l'.2.length < _ + 1 then k l' else none) none]
+        congr
+        funext l'
+        split_ifs with hl' hl''
+        · rfl
+        · simp at hl'
+          absurd hl''
+          rw [Nat.lt_succ]
+          exact hl'
+        · rfl
+      · rfl
+    | plus r₁₁ r₁₂ =>
+      simp [accept]
       rw [accept_denullify]
       rw [accept_denullify]
-      ext l'
-      constructor
-      · intro h
-        simp at h
-        cases h with
-        | inl h =>
-          simp
-          rw [←h]
+      simp [accept]
+    | mul r₁₁ r₁₂ =>
+      simp [accept]
+      rw [accept_denullify]
+      simp [accept]
+    | .star r false =>
+      simp
+      rw [accept, accept]
+      rw [accept, accept, accept]
+      rw [accept_denullify]
+      rw [accept_denullify]
+      congr
+      funext l'
+      split_ifs with hl
+      · rw [accept_suffix _ _ none]
+        rw [accept_suffix _ (fun loc' ↦ r₂.accept loc' fun l' ↦ if l'.2.length < l.2.length then k l' else none) none]
+        congr
+        funext l''
+        split_ifs with hl'
+        · rw [accept_suffix _ _ none]
+          rw [accept_suffix _ (fun l' ↦ if l'.2.length < l.2.length then k l' else none) none]
           congr
-          funext l''
-          split_ifs with hl''
-          · rw [accept_suffix _ k none]
-            congr
-            funext l'''
-            sorry
-          · rw [accept_suffix _ _ none]
-            simp
-            sorry
-        | inr h =>
-          simp
-          rw [←h.right]
-
-          sorry
-      · sorry
-    · sorry
+          funext l'''
+          split_ifs with hl'' hl'''
+          · rfl
+          · absurd hl'''
+            apply Nat.lt_of_le_of_lt
+            exact Nat.le_trans hl'' hl'
+            exact hl
+          · rfl
+        · rfl
+      · rfl
+    | .star r true =>
+      simp
+      rw [accept, accept]
+      rw [accept, accept, accept]
+      rw [accept_denullify]
+      rw [accept_denullify]
+      congr
+      funext l'
+      split_ifs with hl
+      · rw [accept_suffix _ _ none]
+        rw [accept_suffix _ (fun loc' ↦ r₂.accept loc' fun l' ↦ if l'.2.length < l.2.length then k l' else none) none]
+        congr
+        funext l''
+        split_ifs with hl'
+        · rw [accept_suffix _ _ none]
+          rw [accept_suffix _ (fun l' ↦ if l'.2.length < l.2.length then k l' else none) none]
+          congr
+          funext l'''
+          split_ifs with hl'' hl'''
+          · rfl
+          · absurd hl'''
+            apply Nat.lt_of_le_of_lt
+            exact Nat.le_trans hl'' hl'
+            exact hl
+          · rfl
+        · rfl
+      · rfl
   | .star r false =>
     simp
     rw [accept]
     rw [accept_denullify]
-    sorry
-  | .star r true => sorry
+    rw [accept]
+    simp
+    congr
+    funext l'
+    split_ifs with hl
+    · rw [accept_suffix _ _ none]
+      rw [accept_suffix _ (fun l' ↦ if l'.2.length < l.2.length then k l' else none) none]
+      congr
+      funext l''
+      split_ifs with hl' hl''
+      · rfl
+      · exact absurd (Nat.lt_of_le_of_lt hl' hl) hl''
+      · rfl
+    · rfl
+  | .star r true =>
+    simp
+    rw [accept]
+    rw [accept_denullify]
+    rw [accept]
+    simp
+    congr
+    funext l'
+    split_ifs with hl
+    · rw [accept_suffix _ _ none]
+      rw [accept_suffix _ (fun l' ↦ if l'.2.length < l.2.length then k l' else none) none]
+      congr
+      funext l''
+      split_ifs with hl' hl''
+      · rfl
+      · exact absurd (Nat.lt_of_le_of_lt hl' hl) hl''
+      · rfl
+    · rfl
+termination_by (r.size, r.left.size)
+decreasing_by all_goals (simp only [left, size]; omega)
+
+theorem accept_not_nullable (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc α)) (x : Option (Loc α)) (hn : ¬r.nullable) :
+  r.accept l k = r.accept l (fun l' => if l'.right.length < l.right.length then k l' else x) :=
+  match r with
+  | emptyset => by simp [accept]
+  | epsilon => by simp only [nullable, not_true_eq_false] at hn
+  | char c => by
+    rcases l with ⟨u, v⟩
+    cases v with
+    | nil => simp [accept]
+    | cons x xs => simp [accept]
+  | plus r₁ r₂ => by
+    simp at hn
+    simp only [accept, Loc.right]
+    rw [accept_not_nullable r₁ _ _ x]
+    rw [accept_not_nullable r₂ _ _ x]
+    rfl
+    simp [hn.right]
+    simp [hn.left]
+  | mul r₁ r₂ => by
+    match r₁ with
+    | emptyset => simp [accept]
+    | epsilon =>
+      simp at hn
+      simp only [accept, Loc.right]
+      rw [accept_not_nullable r₂ _ _ x]
+      rfl
+      simp [hn]
+    | char c =>
+      rcases l with ⟨u, v⟩
+      cases v with
+      | nil => simp [accept]
+      | cons y ys =>
+        simp only [accept, Loc.right, List.length_cons]
+        split_ifs with hc
+        · simp_rw [Nat.lt_succ]
+          rw [accept_suffix _ _ x]
+          simp only [Loc.right]
+        · rfl
+    | plus r₁₁ r₁₂ =>
+      simp at hn
+      simp only [accept, Loc.right]
+      repeat rw [←accept_mul_def]
+      rw [accept_not_nullable (r₁₁.mul r₂) _ k x]
+      rw [accept_not_nullable (r₁₂.mul r₂) _ k x]
+      rfl
+      · simp
+        intro h
+        apply hn
+        exact Or.inr h
+      · simp
+        intro h
+        apply hn
+        exact Or.inl h
+    | mul r₁₁ r₁₂ =>
+      simp only [accept, Loc.right]
+      simp_rw [←accept_mul_def]
+      apply accept_not_nullable (r₁₁.mul (r₁₂.mul r₂))
+      simp at hn
+      simp
+      exact hn
+    | .star r false =>
+      simp at hn
+      rw [accept, accept, accept, accept]
+      simp only [Loc.right]
+      rw [accept_not_nullable r₂ _ k x]
+      congr
+      funext loc'
+      split_ifs with hl
+      · rw [accept_suffix (r.star _) _ x]
+        nth_rw 2 [accept_suffix (r.star _) _ x]
+        simp only [Prod.mk.eta, Loc.right]
+        congr
+        funext l
+        split_ifs with h₁
+        · rw [accept_suffix r₂ _ x]
+          nth_rw 2 [accept_suffix r₂ _ x]
+          simp only [Prod.mk.eta, Loc.right]
+          congr
+          funext l'
+          split_ifs with h₂ h₃
+          · rfl
+          · absurd h₃
+            apply Nat.lt_of_le_of_lt
+            exact h₂
+            apply Nat.lt_of_le_of_lt
+            exact h₁
+            exact hl
+          · rfl
+        · rfl
+      · rfl
+      simp [hn]
+    | .star r true =>
+      simp at hn
+      rw [accept, accept, accept, accept]
+      simp only [Loc.right]
+      rw [accept_not_nullable r₂ _ k x]
+      congr
+      funext loc'
+      split_ifs with hl
+      · rw [accept_suffix (r.star _) _ x]
+        nth_rw 2 [accept_suffix (r.star _) _ x]
+        simp only [Prod.mk.eta, Loc.right]
+        congr
+        funext l
+        split_ifs with h₁
+        · rw [accept_suffix r₂ _ x]
+          nth_rw 2 [accept_suffix r₂ _ x]
+          simp only [Prod.mk.eta, Loc.right]
+          congr
+          funext l'
+          split_ifs with h₂ h₃
+          · rfl
+          · absurd h₃
+            apply Nat.lt_of_le_of_lt
+            exact h₂
+            apply Nat.lt_of_le_of_lt
+            exact h₁
+            exact hl
+          · rfl
+        · rfl
+      · rfl
+      simp [hn]
+  | .star r false => by simp at hn
+  | .star r true => by simp at hn
+termination_by (r.size, r.left.size)
+decreasing_by all_goals (simp only [left, size]; omega)
+
+theorem accept_denullify' (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc α)) :
+  r.prune.denullify.accept l (fun l' => if l'.right.length < l.right.length then k l' else none) = r.accept l (fun l' => if l'.right.length < l.right.length then k l' else none) := by
+  rw [←accept_not_nullable]
+  induction r with
+  | emptyset => sorry
+  | epsilon => sorry
+  | char => sorry
+  | plus => sorry
+  | mul r₁ r₂ ih₁ ih₂ =>
+    simp [accept]
+    split_ifs with hn
+    · simp [accept]
+      sorry
+    · sorry
+  | star => sorry
+  sorry

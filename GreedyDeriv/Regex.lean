@@ -51,31 +51,47 @@ def nullable : Regex α → Bool
   | mul r₁ r₂ => r₁.nullable && r₂.nullable
   | star _ _ => true
 
+def highNullable : Regex α → Bool
+  | emptyset => false
+  | epsilon => true
+  | char _ => false
+  | plus r₁ r₂ => r₁.highNullable
+  | mul r₁ r₂ => r₁.highNullable && r₂.highNullable
+  | star r lazy? => lazy? || r.highNullable
+
 @[simp]
 def denullify : Regex α → Regex α
   | emptyset => emptyset
   | epsilon => emptyset
   | char c => char c
   | plus r₁ r₂ => plus r₁.denullify r₂.denullify
-  | mul r₁ r₂ =>
-    if r₁.nullable ∧ r₂.nullable
-      then (r₁.denullify.mul r₂).plus r₂.denullify
-      else r₁.mul r₂
+  | mul emptyset r₂ => mul emptyset r₂
+  | mul epsilon r₂ => denullify r₂
+  | mul (char c) r₂ => mul (char c) r₂
+  | mul (plus r₁₁ r₁₂) r₂ =>
+    plus (denullify (mul r₁₁ r₂)) (denullify (mul r₁₂ r₂))
+  | mul (mul r₁₁ r₁₂) r₂ => denullify (r₁₁.mul (r₁₂.mul r₂))
+  | mul (star r false) r₂ =>
+    plus (mul (mul r.denullify (star r false)) r₂) (denullify r₂)
+  | mul (star r true) r₂ =>
+    plus  (denullify r₂) (mul (mul r.denullify (star r true)) r₂)
   | star r lazy? => mul r.denullify (star r lazy?)
+termination_by r => (r.size, r.left.size)
+decreasing_by all_goals (simp only [left, size]; omega)
 
-theorem denullify_not_nullable (r : Regex α) (hn : ¬r.nullable) :
-  r.denullify = r := by
-  induction r with
-  | emptyset => rfl
-  | epsilon => simp at hn
-  | char c => rfl
-  | plus r₁ r₂ ih₁ ih₂ =>
-    simp at hn
-    simp
-    rw [ih₁ (by simp [hn.left]), ih₂ (by simp [hn.right])]
-    exact ⟨rfl, rfl⟩
-  | mul r₁ r₂ ih₁ ih₂ => simp_all
-  | star r lazy? => simp at hn
+-- theorem denullify_not_nullable (r : Regex α) (hn : ¬r.nullable) :
+--   r.denullify = r := by
+--   induction r with
+--   | emptyset => rfl
+--   | epsilon => simp at hn
+--   | char c => rfl
+--   | plus r₁ r₂ ih₁ ih₂ =>
+--     simp at hn
+--     simp
+--     rw [ih₁ (by simp [hn.left]), ih₂ (by simp [hn.right])]
+--     exact ⟨rfl, rfl⟩
+--   | mul r₁ r₂ ih₁ ih₂ => sorry
+--   | star r lazy? => simp at hn
 
 /-- Definition 13 -/
  @[simp]
@@ -175,4 +191,4 @@ def matchEnd : Regex α → Loc α → Option (Loc α)
     match matchEnd (r.prune.deriv c) (c :: u, v) with
     | none => if r.nullable then some (u, c::v) else none
     | some loc => some loc
-termination_by _ loc => loc.right.length
+termination_by _ loc => loc.right
