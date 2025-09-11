@@ -14,6 +14,128 @@ namespace Regex
 
 variable {α : Type u}
 
+inductive Matches : List α → Regex α → Prop
+  | epsilon : Matches [] epsilon
+  | char {c : α} : Matches [c] (char c)
+  | left {s : List α} {r₁ r₂ : Regex α} :
+    Matches s r₁ →
+    Matches s (r₁.plus r₂)
+  | right {s : List α} {r₁ r₂ : Regex α} :
+    Matches s r₂ →
+    Matches s (r₁.plus r₂)
+  | mul {s₁ s₂ s : List α} {r₁ r₂ : Regex α} :
+    s₁ ++ s₂ = s →
+    Matches s₁ r₁ →
+    Matches s₂ r₂ →
+    Matches s (r₁.mul r₂)
+  | star_nil {r : Regex α} {lazy? : Bool} :
+    Matches [] (r.star lazy?)
+  | stars {s₁ s₂ s : List α} {r : Regex α} {lazy? : Bool} :
+    s₁ ++ s₂ = s →
+    Matches s₁ r →
+    Matches s₂ (r.star lazy?) →
+    Matches s (r.star lazy?)
+
+inductive PartialMatch : Regex α → Loc α → Loc α → Prop
+  | epsilon {l : Loc α} :
+    PartialMatch epsilon l l
+  | char {c : α} {u v : List α} :
+    PartialMatch (char c) ⟨u, c::v⟩ ⟨c::u, v⟩
+  | plus_left {r₁ r₂ : Regex α} {l l' : Loc α} :
+    PartialMatch r₁ l l' →
+    PartialMatch (plus r₁ r₂) l l'
+  | plus_right {r₁ r₂ : Regex α} {l l' : Loc α} :
+    PartialMatch r₂ l l' →
+    PartialMatch (plus r₁ r₂) l l'
+  | mul {r₁ r₂ : Regex α} {l k l' : Loc α} :
+    PartialMatch r₁ l k →
+    PartialMatch r₂ k l' →
+    PartialMatch (mul r₁ r₂) l l'
+  | star_nil {r : Regex α} {lazy? : Bool} {l : Loc α} :
+    PartialMatch (star r lazy?) l l
+  | stars {r : Regex α} {lazy? : Bool} {l k l' : Loc α} :
+    PartialMatch r l k →
+    PartialMatch (star r lazy?) k l' →
+    PartialMatch (star r lazy?) l l'
+
+notation:100 "(" r ", " l ")" " → " l':40 => PartialMatch r l l'
+
+theorem PartialMatch.word_eq {r : Regex α} {l l' : Loc α} (h : (r, l) → l') :
+  l.word = l'.word := by
+  induction h with
+  | epsilon => rfl
+  | char => simp
+  | plus_left h ih =>
+    exact ih
+  | plus_right h ih =>
+    exact ih
+  | mul h₁ h₂ ih₁ ih₂ =>
+    exact Eq.trans ih₁ ih₂
+  | star_nil => rfl
+  | stars h₁ h₂ ih₁ ih₂ =>
+    exact Eq.trans ih₁ ih₂
+
+theorem PartialMatch.pos_le {r : Regex α} {l l' : Loc α} (h : (r, l) → l') :
+  l.pos ≤ l'.pos := by
+  induction h with
+  | epsilon =>
+    exact Nat.le_refl _
+  | char => simp
+  | plus_left h ih =>
+    exact ih
+  | plus_right h ih =>
+    exact ih
+  | mul h₁ h₂ ih₁ ih₂ =>
+    exact Nat.le_trans ih₁ ih₂
+  | star_nil =>
+    exact Nat.le_refl _
+  | stars h₁ h₂ ih₁ ih₂ =>
+    exact Nat.le_trans ih₁ ih₂
+
+theorem Matches.partial_match {r : Regex α} {s u v : List α} (h : Matches s r) :
+  (r, (u, s ++ v)) → (s.reverse ++ u, v) := by
+  induction h generalizing u v with
+  | epsilon =>
+    exact PartialMatch.epsilon
+  | char =>
+    exact PartialMatch.char
+  | left h ih =>
+    exact PartialMatch.plus_left ih
+  | right h ih =>
+    exact PartialMatch.plus_right ih
+  | mul hs h₁ h₂ ih₁ ih₂ =>
+    simp [←hs]
+    exact PartialMatch.mul ih₁ ih₂
+  | star_nil =>
+    exact PartialMatch.star_nil
+  | stars hs h₁ h₂ ih₁ ih₂ =>
+    simp [←hs]
+    exact PartialMatch.stars ih₁ ih₂
+
+theorem PartialMatch.matches {r : Regex α} {l l' : Loc α} (h : (r, l) → l') :
+  Matches (Loc.match l l') r := by
+  induction h with
+  | epsilon =>
+    simp [Loc.match]
+    exact Matches.epsilon
+  | char =>
+    simp [Loc.match]
+    rw [Nat.succ_sub (by simp), Nat.sub_self]
+    exact Matches.char
+  | plus_left h ih =>
+    exact Matches.left ih
+  | plus_right h ih =>
+    exact Matches.right ih
+  | mul h₁ h₂ ih₁ ih₂ =>
+    refine Matches.mul ?_ ih₁ ih₂
+    exact Loc.match_append (word_eq h₁) (pos_le h₁) (pos_le h₂)
+  | star_nil =>
+    simp [Loc.match]
+    exact Matches.star_nil
+  | stars h₁ h₂ ih₁ ih₂ =>
+    refine Matches.stars ?_ ih₁ ih₂
+    exact Loc.match_append (word_eq h₁) (pos_le h₁) (pos_le h₂)
+
 @[simp]
 def size : Regex α → Nat
   | emptyset => 1
@@ -97,31 +219,6 @@ def deriv : Regex α → α → Regex α
   decreasing_by all_goals (simp only [left, size]; omega)
 
 /-! ### Partial Matching -/
-
-/-- Definition 1 -/
-inductive PartialMatch : Regex α → Loc α → Loc α → Prop
-  | epsilon {l : Loc α} :
-    PartialMatch epsilon l l
-  | char {c : α} {u v : List α} :
-    PartialMatch (char c) ⟨u, c::v⟩ ⟨c::u, v⟩
-  | plus_left {r₁ r₂ : Regex α} {l l' : Loc α} :
-    PartialMatch r₁ l l' →
-    PartialMatch (plus r₁ r₂) l l'
-  | plus_right {r₁ r₂ : Regex α} {l l' : Loc α} :
-    PartialMatch r₂ l l' →
-    PartialMatch (plus r₁ r₂) l l'
-  | mul {r₁ r₂ : Regex α} {l k l' : Loc α} :
-    PartialMatch r₁ l k →
-    PartialMatch r₂ k l' →
-    PartialMatch (mul r₁ r₂) l l'
-  | star_nil {r : Regex α} {lazy? : Bool} {l : Loc α} :
-    PartialMatch (star r lazy?) l l
-  | stars {r : Regex α} {lazy? : Bool} {l k l' : Loc α} :
-    PartialMatch r l k →
-    PartialMatch (star r lazy?) k l' →
-    PartialMatch (star r lazy?) l l'
-
-notation:100 "(" r ", " l ")" " → " l':40 => PartialMatch r l l'
 
 /-- Definition 14 -/
 def matchEnd : Regex α → Loc α → Option (Loc α)
