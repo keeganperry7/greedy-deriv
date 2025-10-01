@@ -1,6 +1,8 @@
 import GreedyDeriv.Regex
 import Mathlib.Tactic
 
+universe u
+
 variable {α : Type u} [DecidableEq α]
 
 open Regex
@@ -146,7 +148,7 @@ theorem accept_suffix (r : Regex α) {l : Loc α} (k : Loc α → Option (Loc α
     split_ifs with hl
     · rw [accept_suffix (r.star _) _ x]
       rw [accept_suffix (r.star _) (fun l' ↦ if l'.2.length ≤ _ then _ else _) x]
-      simp only [Prod.mk.eta, Loc.right]
+      simp only [Loc.right]
       congr
       funext l
       split_ifs with h₁ h₂
@@ -165,7 +167,7 @@ theorem accept_suffix (r : Regex α) {l : Loc α} (k : Loc α → Option (Loc α
     split_ifs with hl
     · rw [accept_suffix (r.star _) _ x]
       rw [accept_suffix (r.star _) (fun l' ↦ if l'.2.length ≤ _ then _ else _) x]
-      simp only [Prod.mk.eta, Loc.right]
+      simp only [Loc.right]
       congr
       funext l
       split_ifs with h₁ h₂
