@@ -1,6 +1,8 @@
 import GreedyDeriv.Locations
 import Mathlib.Tactic.ApplyAt
 
+universe u
+
 inductive Regex (α :  Type u) : Type u where
   | emptyset : Regex α
   | epsilon : Regex α
@@ -120,7 +122,6 @@ theorem PartialMatch.matches {r : Regex α} {l l' : Loc α} (h : (r, l) → l') 
     exact Matches.epsilon
   | char =>
     simp [Loc.match]
-    rw [Nat.succ_sub (by simp), Nat.sub_self]
     exact Matches.char
   | plus_left h ih =>
     exact Matches.left ih

@@ -1,5 +1,8 @@
+universe u
 
 abbrev Loc (α : Type u) := List α × List α
+
+variable {α : Type u}
 
 @[simp]
 def Loc.left (loc : Loc α) : List α := loc.1
@@ -43,7 +46,7 @@ theorem Loc.match_append {l₁ l₂ l₃ : Loc α} (hw₁ : l₁.word = l₂.wor
   | nil =>
     subst hw₁
     simp
-    rw [List.take_append_eq_append_take]
+    rw [List.take_append]
     rw [List.length_reverse, List.append_cancel_right_eq]
     rw [List.take_of_length_le]
     rw [List.length_reverse]
