@@ -14,27 +14,27 @@ namespace Regex
 
 variable {α : Type u}
 
-inductive Matches : List α → Regex α → Prop
-  | epsilon : Matches [] epsilon
-  | char {c : α} : Matches [c] (char c)
+inductive Matches : Regex α → List α → Prop
+  | epsilon : Matches epsilon []
+  | char {c : α} : Matches (char c) [c]
   | left {s : List α} {r₁ r₂ : Regex α} :
-    Matches s r₁ →
-    Matches s (r₁.plus r₂)
+    Matches r₁ s →
+    Matches (r₁.plus r₂) s
   | right {s : List α} {r₁ r₂ : Regex α} :
-    Matches s r₂ →
-    Matches s (r₁.plus r₂)
+    Matches r₂ s →
+    Matches (r₁.plus r₂) s
   | mul {s₁ s₂ s : List α} {r₁ r₂ : Regex α} :
     s₁ ++ s₂ = s →
-    Matches s₁ r₁ →
-    Matches s₂ r₂ →
-    Matches s (r₁.mul r₂)
+    Matches r₁ s₁ →
+    Matches r₂ s₂ →
+    Matches (r₁.mul r₂) s
   | star_nil {r : Regex α} {lazy? : Bool} :
-    Matches [] (r.star lazy?)
+    Matches (r.star lazy?) []
   | stars {s₁ s₂ s : List α} {r : Regex α} {lazy? : Bool} :
     s₁ ++ s₂ = s →
-    Matches s₁ r →
-    Matches s₂ (r.star lazy?) →
-    Matches s (r.star lazy?)
+    Matches r s₁ →
+    Matches (r.star lazy?) s₂ →
+    Matches (r.star lazy?) s
 
 inductive PartialMatch : Regex α → Loc α → Loc α → Prop
   | epsilon {l : Loc α} :
@@ -92,7 +92,7 @@ theorem PartialMatch.pos_le {r : Regex α} {l l' : Loc α} (h : (r, l) → l') :
   | stars h₁ h₂ ih₁ ih₂ =>
     exact Nat.le_trans ih₁ ih₂
 
-theorem Matches.partial_match {r : Regex α} {s u v : List α} (h : Matches s r) :
+theorem Matches.partial_match {r : Regex α} {s u v : List α} (h : Matches r s) :
   (r, (u, s ++ v)) → (s.reverse ++ u, v) := by
   induction h generalizing u v with
   | epsilon =>
@@ -113,7 +113,7 @@ theorem Matches.partial_match {r : Regex α} {s u v : List α} (h : Matches s r)
     exact PartialMatch.stars ih₁ ih₂
 
 theorem PartialMatch.matches {r : Regex α} {l l' : Loc α} (h : (r, l) → l') :
-  Matches (Loc.match l l') r := by
+  Matches r (Loc.match l l') := by
   induction h with
   | epsilon =>
     simp [Loc.match]
