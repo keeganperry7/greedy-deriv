@@ -163,8 +163,6 @@ def reverse : Regex α → Regex α
   | mul r₁ r₂ => mul r₂.reverse r₁.reverse
   | star r lazy? => star r.reverse lazy?
 
-/-! ### Derivatives -/
-
 @[simp]
 def nullable : Regex α → Bool
   | emptyset => false
@@ -174,7 +172,6 @@ def nullable : Regex α → Bool
   | mul r₁ r₂ => r₁.nullable && r₂.nullable
   | star _ _ => true
 
-/-- Definition 13 -/
  @[simp]
 def prune : Regex α → Regex α
   | emptyset => emptyset
@@ -219,16 +216,27 @@ def deriv : Regex α → α → Regex α
   termination_by r => (r.size, r.left.size)
   decreasing_by all_goals (simp only [left, size]; omega)
 
-/-! ### Partial Matching -/
-
-/-- Definition 14 -/
-def matchEnd : Regex α → Loc α → Option (Loc α)
-  | r, (u, []) =>
+def matchEnd (r : Regex α) (l : Loc α) : Option (Loc α) :=
+  match l with
+  | ⟨u, []⟩ =>
     if r.nullable
       then some (u, [])
       else none
-  | r, (u, c :: v) =>
+  | ⟨u, c :: v⟩ =>
     match matchEnd (r.prune.deriv c) (c :: u, v) with
     | none => if r.nullable then some (u, c::v) else none
     | some loc => some loc
-termination_by _ loc => loc.right.length
+termination_by l.right.length
+
+/-- Find the first match from a start location `l` and a matcher `k`. -/
+def findFirst (l : Loc α) (k : Loc α → Option (Loc α)) : Option (List α) :=
+  match k l with
+  | none =>
+    match l with
+    | ⟨_, []⟩ => none
+    | ⟨u, c::v⟩ => findFirst ⟨c::u, v⟩ k
+  | some l' => some (Loc.match l l')
+termination_by l.right.length
+
+def rmatch (r : Regex α) (s : List α) : Option (List α) :=
+  findFirst ⟨[], s⟩ r.matchEnd

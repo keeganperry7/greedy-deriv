@@ -44,7 +44,6 @@ theorem accept_prune (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc α)
       rw [Option.or_of_isSome]
       apply hk
 
-/-- Theorem 16 -/
 theorem accept_deriv_cond (r : Regex α) (u v : List α) (c : α) (k : Loc α → Option (Loc α)) :
   (r.deriv c).accept (c::u, v) k = r.accept (u, c::v) (fun l' ↦ if l'.right.length < (c::v).length then k l' else none) :=
   match r with
@@ -194,7 +193,6 @@ theorem accept_deriv_cond (r : Regex α) (u v : List α) (c : α) (k : Loc α �
 termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
-/-- Theorem 17 -/
 theorem accept_deriv_none {r : Regex α} {c : α} {u v : List α} {k : Loc α → Option (Loc α)} (hk : ∀ l, (k l).isSome) :
   (r.prune.deriv c).accept (c::u, v) k = none →
   r.accept (u, c::v) k = if r.nullable then k (u, c::v) else none :=
@@ -342,7 +340,6 @@ theorem accept_deriv_none {r : Regex α} {c : α} {u v : List α} {k : Loc α �
 termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
-/-- Theorem 18 -/
 theorem accept_deriv (r : Regex α) (c : α) (u v : List α) (k : Loc α → Option (Loc α)) (loc : Loc α) (hk : ∀ l', (k l').isSome) :
   (r.prune.deriv c).accept (c::u, v) k = some loc →
   r.accept (u, c::v) k = some loc :=
@@ -518,7 +515,6 @@ theorem accept_deriv (r : Regex α) (c : α) (u v : List α) (k : Loc α → Opt
 termination_by (r.size, r.left.size)
 decreasing_by all_goals (simp only [left, size]; omega)
 
-/-- Theorem 19 -/
 theorem matchEnd_gmatch (r : Regex α) (l : Loc α) :
   r.matchEnd l = r.gmatch l := by
   rw [gmatch]

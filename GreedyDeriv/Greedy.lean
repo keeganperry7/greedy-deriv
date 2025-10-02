@@ -7,7 +7,6 @@ variable {α : Type u} [DecidableEq α]
 
 open Regex
 
-/-- Defintion 4 -/
 def Regex.accept : Regex α → Loc α → (Loc α → Option (Loc α)) → Option (Loc α)
   | emptyset, _, _ => none
   | epsilon, loc, k => k loc
@@ -19,7 +18,6 @@ def Regex.accept : Regex α → Loc α → (Loc α → Option (Loc α)) → Opti
   | star r true, loc, k => (k loc).or (r.accept loc (fun loc' => if loc'.right.length < loc.right.length then (r.star true).accept loc' k else none))
 termination_by r loc => (r.size, loc.right.length)
 
-/-- Definition 5 -/
 def Regex.gmatch : Regex α → Loc α → Option (Loc α)
   | r, l => r.accept l some
 
@@ -27,7 +25,6 @@ theorem accept_mul_def (r₁ r₂ : Regex α) (loc : Loc α) (k : Loc α → Opt
   (r₁.mul r₂).accept loc k = (r₁.accept loc (fun loc' => r₂.accept loc' k)) := by
   rw [accept]
 
-/-- Theorem 6 -/
 theorem accept_matches (r : Regex α) (l l' : Loc α) (k : Loc α → Option (Loc α)) :
   r.accept l k = some l' → ∃ p, (r, l) → p ∧ k p = l' :=
   match r with
@@ -99,7 +96,6 @@ theorem accept_matches (r : Regex α) (l l' : Loc α) (k : Loc α → Option (Lo
       exact ⟨p', PartialMatch.stars h₁ h₂, hk⟩
 termination_by (r.size, l.right.length)
 
-/-- Corollary 7 -/
 theorem gmatch_matches (r : Regex α) (l l' : Loc α) :
   r.gmatch l = some l' → (r, l) → l' := by
   intro h
@@ -108,7 +104,6 @@ theorem gmatch_matches (r : Regex α) (l l' : Loc α) :
   simp only [Option.some_inj, exists_eq_right] at h
   exact h
 
-/-- Lemma 8 -/
 theorem accept_suffix (r : Regex α) {l : Loc α} (k : Loc α → Option (Loc α)) (x : Option (Loc α)) :
   r.accept l k = r.accept l (fun l' => if l'.right.length ≤ l.right.length then k l' else x) :=
   match r with
@@ -180,7 +175,6 @@ theorem accept_suffix (r : Regex α) {l : Loc α} (k : Loc α → Option (Loc α
     · rfl
 termination_by (r.size, l.right.length)
 
-/-- Lemma 9 -/
 theorem accept_nullable (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc α)) (hn : r.nullable) (hk : (k l).isSome) :
   (r.accept l k).isSome := by
   induction r generalizing k with
@@ -223,7 +217,6 @@ theorem accept_nullable (r : Regex α) (l : Loc α) (k : Loc α → Option (Loc 
       simp
       exact Or.inl hk
 
-/-- Theorem 10 -/
 theorem accept_nil {r : Regex α} {s : List α} {k : Loc α → Option (Loc α)} :
   r.accept (s, []) k = if r.nullable then k (s, []) else none := by
   induction r generalizing k with
